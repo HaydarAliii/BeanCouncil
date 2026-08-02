@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: llm-council-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-llmcouncil}
+      POSTGRES_USER: ${POSTGRES_USER:-llmcouncil}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-llmcouncil}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U llmcouncil"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  reverse-api:
+    # TODO: gpt4free (veya tercih edilecek başka bir reverse API) imajı ile değiştirilecek
+    image: nginx:alpine
+    container_name: llm-council-reverse-api
+    restart: unless-stopped
+    ports:
+      - "1337:80"
+
+volumes:
+  postgres_data:

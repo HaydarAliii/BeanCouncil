@@ -1,0 +1,5 @@
+target/
+*.class
+
+# Env / secrets
+.env
