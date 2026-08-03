@@ -1,3 +1,5 @@
+name: llmcouncil
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -18,12 +20,16 @@ services:
       retries: 5
 
   reverse-api:
-    # TODO: gpt4free (veya tercih edilecek başka bir reverse API) imajı ile değiştirilecek
-    image: nginx:alpine
+    # gpt4free (g4f): key gerektirmeyen, OpenAI-uyumlu ücretsiz reverse API
+    image: hlohaus789/g4f:latest-slim
     container_name: llm-council-reverse-api
     restart: unless-stopped
+    shm_size: "2gb"
     ports:
-      - "1337:80"
+      - "1337:8080"
+    volumes:
+      - ./g4f/har_and_cookies:/app/har_and_cookies
+      - ./g4f/generated_media:/app/generated_media
 
 volumes:
   postgres_data:

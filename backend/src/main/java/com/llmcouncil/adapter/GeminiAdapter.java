@@ -13,25 +13,24 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * LlmProviderAdapter'ın Groq (OpenAI uyumlu chat completions) için örnek implementasyonu.
- * Diğer sağlayıcılar (Gemini, ReverseApiAdapter, ...) aynı şablonu izleyerek eklenir.
+ * LlmProviderAdapter'ın Google Gemini (generateContent) için implementasyonu.
  */
 @Component
-@ConditionalOnExpression("'${llm.providers.groq.api-key:}' != ''")
-public class GroqAdapter implements LlmProviderAdapter {
+@ConditionalOnExpression("'${llm.providers.gemini.api-key:}' != ''")
+public class GeminiAdapter implements LlmProviderAdapter {
 
-    private static final String PROVIDER_NAME = "groq";
+    private static final String PROVIDER_NAME = "gemini";
 
     private final WebClient webClient;
     private final String model;
 
-    public GroqAdapter(WebClient.Builder webClientBuilder,
-                        @Value("${llm.providers.groq.base-url}") String baseUrl,
-                        @Value("${llm.providers.groq.api-key}") String apiKey,
-                        @Value("${llm.providers.groq.model}") String model) {
+    public GeminiAdapter(WebClient.Builder webClientBuilder,
+                          @Value("${llm.providers.gemini.base-url}") String baseUrl,
+                          @Value("${llm.providers.gemini.api-key}") String apiKey,
+                          @Value("${llm.providers.gemini.model}") String model) {
         this.webClient = webClientBuilder
                 .baseUrl(baseUrl)
-                .defaultHeader("Authorization", "Bearer " + apiKey)
+                .defaultHeader("x-goog-api-key", apiKey)
                 .build();
         this.model = model;
     }
@@ -46,12 +45,11 @@ public class GroqAdapter implements LlmProviderAdapter {
     @RateLimiter(name = "llmProvider")
     public CompletableFuture<LlmResponse> generateResponse(String prompt) {
         Map<String, Object> requestBody = Map.of(
-                "model", model,
-                "messages", List.of(Map.of("role", "user", "content", prompt))
+                "contents", List.of(Map.of("parts", List.of(Map.of("text", prompt))))
         );
 
         return webClient.post()
-                .uri("/chat/completions")
+                .uri("/models/{model}:generateContent", model)
                 .bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(Map.class)
@@ -64,8 +62,9 @@ public class GroqAdapter implements LlmProviderAdapter {
 
     @SuppressWarnings("unchecked")
     private String extractContent(Map<String, Object> body) {
-        List<Map<String, Object>> choices = (List<Map<String, Object>>) body.get("choices");
-        Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
-        return (String) message.get("content");
+        List<Map<String, Object>> candidates = (List<Map<String, Object>>) body.get("candidates");
+        Map<String, Object> content = (Map<String, Object>) candidates.get(0).get("content");
+        List<Map<String, Object>> parts = (List<Map<String, Object>>) content.get("parts");
+        return (String) parts.get(0).get("text");
     }
 }

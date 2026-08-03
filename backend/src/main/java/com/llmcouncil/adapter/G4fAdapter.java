@@ -3,9 +3,6 @@ package com.llmcouncil.adapter;
 import com.llmcouncil.model.dto.LlmResponse;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.github.resilience4j.retry.annotation.Retry;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
-import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.List;
@@ -13,32 +10,25 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * LlmProviderAdapter'ın Groq (OpenAI uyumlu chat completions) için örnek implementasyonu.
- * Diğer sağlayıcılar (Gemini, ReverseApiAdapter, ...) aynı şablonu izleyerek eklenir.
+ * LlmProviderAdapter'ın gpt4free (g4f) reverse API'si için implementasyonu.
+ * OpenAI-uyumlu chat completions formatı kullanır ama auth gerektirmez.
+ * Aynı sınıftan farklı modeller için birden çok bean, {@link com.llmcouncil.config.G4fConfig} içinde üretilir.
  */
-@Component
-@ConditionalOnExpression("'${llm.providers.groq.api-key:}' != ''")
-public class GroqAdapter implements LlmProviderAdapter {
+public class G4fAdapter implements LlmProviderAdapter {
 
-    private static final String PROVIDER_NAME = "groq";
-
+    private final String providerName;
     private final WebClient webClient;
     private final String model;
 
-    public GroqAdapter(WebClient.Builder webClientBuilder,
-                        @Value("${llm.providers.groq.base-url}") String baseUrl,
-                        @Value("${llm.providers.groq.api-key}") String apiKey,
-                        @Value("${llm.providers.groq.model}") String model) {
-        this.webClient = webClientBuilder
-                .baseUrl(baseUrl)
-                .defaultHeader("Authorization", "Bearer " + apiKey)
-                .build();
+    public G4fAdapter(WebClient.Builder webClientBuilder, String baseUrl, String model, String providerName) {
+        this.webClient = webClientBuilder.baseUrl(baseUrl).build();
         this.model = model;
+        this.providerName = providerName;
     }
 
     @Override
     public String getProviderName() {
-        return PROVIDER_NAME;
+        return providerName;
     }
 
     @Override
@@ -56,9 +46,9 @@ public class GroqAdapter implements LlmProviderAdapter {
                 .retrieve()
                 .bodyToMono(Map.class)
                 .map(this::extractContent)
-                .map(content -> LlmResponse.ok(PROVIDER_NAME, content))
+                .map(content -> LlmResponse.ok(providerName, content))
                 .onErrorResume(ex -> reactor.core.publisher.Mono.just(
-                        LlmResponse.failed(PROVIDER_NAME, ex.getMessage())))
+                        LlmResponse.failed(providerName, ex.getMessage())))
                 .toFuture();
     }
 

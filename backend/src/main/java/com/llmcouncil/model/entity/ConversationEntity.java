@@ -23,6 +23,9 @@ public class ConversationEntity {
     @Column(columnDefinition = "TEXT")
     private String finalAnswer;
 
+    @Column(columnDefinition = "TEXT")
+    private String transcript;
+
     @Column(nullable = false)
     private Instant createdAt = Instant.now();
 
@@ -47,6 +50,14 @@ public class ConversationEntity {
 
     public void setFinalAnswer(String finalAnswer) {
         this.finalAnswer = finalAnswer;
+    }
+
+    public String getTranscript() {
+        return transcript;
+    }
+
+    public void setTranscript(String transcript) {
+        this.transcript = transcript;
     }
 
     public Instant getCreatedAt() {

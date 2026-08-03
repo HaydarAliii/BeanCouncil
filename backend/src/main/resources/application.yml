@@ -17,11 +17,21 @@ server:
   port: 8080
 
 llm:
+  council:
+    president: g4f:gpt-4o-mini
   providers:
     groq:
       base-url: https://api.groq.com/openai/v1
       api-key: ${GROQ_API_KEY:}
       model: llama-3.3-70b-versatile
+    gemini:
+      base-url: https://generativelanguage.googleapis.com/v1beta
+      api-key: ${GEMINI_API_KEY:}
+      model: gemini-2.0-flash
+    g4f:
+      base-url: ${G4F_BASE_URL:http://localhost:1337/v1}
+      model-a: gpt-4o-mini
+      model-b: gemini-2.5-flash
 
 resilience4j:
   retry:
