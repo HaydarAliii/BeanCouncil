@@ -3,6 +3,3 @@ target/
 
 # Env / secrets
 .env
-
-# g4f (reverse-api) runtime cache
-g4f/

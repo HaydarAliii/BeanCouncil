@@ -49,16 +49,20 @@ public class CouncilService {
         List<LlmResponse> firstOpinions = collectFirstOpinions(prompt);
 
         List<LlmResponse> reviews;
+        String actualPresident;
         String finalAnswer;
         if (firstOpinions.stream().anyMatch(LlmResponse::success)) {
             reviews = collectReviews(prompt, firstOpinions);
-            finalAnswer = synthesize(prompt, firstOpinions, reviews);
+            SynthesisResult synthesis = synthesize(resolvePresident(), prompt, firstOpinions, reviews);
+            actualPresident = synthesis.providerName();
+            finalAnswer = synthesis.finalAnswer();
         } else {
             reviews = List.of();
+            actualPresident = presidentProviderName;
             finalAnswer = "The council could not produce an answer because all providers failed.";
         }
 
-        CouncilResult result = new CouncilResult(prompt, firstOpinions, reviews, presidentProviderName, finalAnswer);
+        CouncilResult result = new CouncilResult(prompt, firstOpinions, reviews, actualPresident, finalAnswer);
         persist(result);
         return result;
     }
@@ -110,9 +114,7 @@ public class CouncilService {
         return provider.generateResponse(reviewPrompt);
     }
 
-    private String synthesize(String prompt, List<LlmResponse> firstOpinions, List<LlmResponse> reviews) {
-        LlmProviderAdapter president = resolvePresident();
-
+    private SynthesisResult synthesize(LlmProviderAdapter president, String prompt, List<LlmResponse> firstOpinions, List<LlmResponse> reviews) {
         String opinionsBlock = formatBlock(anonymize(firstOpinions));
         String reviewsBlock = reviews.stream()
                 .filter(LlmResponse::success)
@@ -134,7 +136,25 @@ public class CouncilService {
                 """.formatted(prompt, opinionsBlock, reviewsBlock);
 
         LlmResponse response = president.generateResponse(synthesisPrompt).join();
-        return response.success() ? response.content() : "President provider failed: " + response.errorMessage();
+        if (response.success()) {
+            return new SynthesisResult(president.getProviderName(), response.content());
+        }
+
+        log.warn("Council president '{}' failed to synthesize ({}); trying other members",
+                president.getProviderName(), response.errorMessage());
+        for (LlmProviderAdapter fallback : providers) {
+            if (fallback == president) {
+                continue;
+            }
+            LlmResponse fallbackResponse = fallback.generateResponse(synthesisPrompt).join();
+            if (fallbackResponse.success()) {
+                return new SynthesisResult(fallback.getProviderName(), fallbackResponse.content());
+            }
+        }
+        return new SynthesisResult(president.getProviderName(), "President provider failed: " + response.errorMessage());
+    }
+
+    private record SynthesisResult(String providerName, String finalAnswer) {
     }
 
     private LlmProviderAdapter resolvePresident() {

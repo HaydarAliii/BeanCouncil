@@ -10,18 +10,23 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * LlmProviderAdapter'ın gpt4free (g4f) reverse API'si için implementasyonu.
- * OpenAI-uyumlu chat completions formatı kullanır ama auth gerektirmez.
- * Aynı sınıftan farklı modeller için birden çok bean, {@link com.llmcouncil.config.G4fConfig} içinde üretilir.
+ * LlmProviderAdapter'ın OpenAI-uyumlu chat completions formatını (Groq, xAI, g4f, ...)
+ * konuşan herhangi bir sağlayıcı için genel implementasyonu. apiKey null/boş verilirse
+ * Authorization header hiç eklenmez (g4f gibi auth gerektirmeyen sağlayıcılar için).
  */
-public class G4fAdapter implements LlmProviderAdapter {
+public class OpenAiCompatibleAdapter implements LlmProviderAdapter {
 
     private final String providerName;
     private final WebClient webClient;
     private final String model;
 
-    public G4fAdapter(WebClient.Builder webClientBuilder, String baseUrl, String model, String providerName) {
-        this.webClient = webClientBuilder.baseUrl(baseUrl).build();
+    public OpenAiCompatibleAdapter(WebClient.Builder webClientBuilder, String baseUrl, String model,
+                                    String providerName, String apiKey) {
+        WebClient.Builder builder = webClientBuilder.baseUrl(baseUrl);
+        if (apiKey != null && !apiKey.isBlank()) {
+            builder = builder.defaultHeader("Authorization", "Bearer " + apiKey);
+        }
+        this.webClient = builder.build();
         this.model = model;
         this.providerName = providerName;
     }

@@ -3,9 +3,6 @@ package com.llmcouncil.adapter;
 import com.llmcouncil.model.dto.LlmResponse;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.github.resilience4j.retry.annotation.Retry;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
-import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.List;
@@ -15,8 +12,6 @@ import java.util.concurrent.CompletableFuture;
 /**
  * LlmProviderAdapter'ın Google Gemini (generateContent) için implementasyonu.
  */
-@Component
-@ConditionalOnExpression("'${llm.providers.gemini.api-key:}' != ''")
 public class GeminiAdapter implements LlmProviderAdapter {
 
     private static final String PROVIDER_NAME = "gemini";
@@ -24,10 +19,7 @@ public class GeminiAdapter implements LlmProviderAdapter {
     private final WebClient webClient;
     private final String model;
 
-    public GeminiAdapter(WebClient.Builder webClientBuilder,
-                          @Value("${llm.providers.gemini.base-url}") String baseUrl,
-                          @Value("${llm.providers.gemini.api-key}") String apiKey,
-                          @Value("${llm.providers.gemini.model}") String model) {
+    public GeminiAdapter(WebClient.Builder webClientBuilder, String baseUrl, String apiKey, String model) {
         this.webClient = webClientBuilder
                 .baseUrl(baseUrl)
                 .defaultHeader("x-goog-api-key", apiKey)

@@ -3,9 +3,6 @@ package com.llmcouncil.adapter;
 import com.llmcouncil.model.dto.LlmResponse;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.github.resilience4j.retry.annotation.Retry;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
-import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.List;
@@ -13,25 +10,21 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * LlmProviderAdapter'ın Groq (OpenAI uyumlu chat completions) için örnek implementasyonu.
- * Diğer sağlayıcılar (Gemini, ReverseApiAdapter, ...) aynı şablonu izleyerek eklenir.
+ * LlmProviderAdapter'ın Anthropic (Claude, Messages API) için implementasyonu.
+ * Groq/Gemini'den farklı olarak istek/cevap şekli OpenAI formatında değildir.
  */
-@Component
-@ConditionalOnExpression("'${llm.providers.groq.api-key:}' != ''")
-public class GroqAdapter implements LlmProviderAdapter {
+public class ClaudeAdapter implements LlmProviderAdapter {
 
-    private static final String PROVIDER_NAME = "groq";
+    private static final String PROVIDER_NAME = "claude";
 
     private final WebClient webClient;
     private final String model;
 
-    public GroqAdapter(WebClient.Builder webClientBuilder,
-                        @Value("${llm.providers.groq.base-url}") String baseUrl,
-                        @Value("${llm.providers.groq.api-key}") String apiKey,
-                        @Value("${llm.providers.groq.model}") String model) {
+    public ClaudeAdapter(WebClient.Builder webClientBuilder, String baseUrl, String apiKey, String model) {
         this.webClient = webClientBuilder
                 .baseUrl(baseUrl)
-                .defaultHeader("Authorization", "Bearer " + apiKey)
+                .defaultHeader("x-api-key", apiKey)
+                .defaultHeader("anthropic-version", "2023-06-01")
                 .build();
         this.model = model;
     }
@@ -47,11 +40,12 @@ public class GroqAdapter implements LlmProviderAdapter {
     public CompletableFuture<LlmResponse> generateResponse(String prompt) {
         Map<String, Object> requestBody = Map.of(
                 "model", model,
+                "max_tokens", 1024,
                 "messages", List.of(Map.of("role", "user", "content", prompt))
         );
 
         return webClient.post()
-                .uri("/chat/completions")
+                .uri("/messages")
                 .bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(Map.class)
@@ -64,8 +58,7 @@ public class GroqAdapter implements LlmProviderAdapter {
 
     @SuppressWarnings("unchecked")
     private String extractContent(Map<String, Object> body) {
-        List<Map<String, Object>> choices = (List<Map<String, Object>>) body.get("choices");
-        Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
-        return (String) message.get("content");
+        List<Map<String, Object>> content = (List<Map<String, Object>>) body.get("content");
+        return (String) content.get(0).get("text");
     }
 }
