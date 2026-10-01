@@ -103,5 +103,6 @@ curl -X POST http://localhost:8080/api/council/ask \
 - ✅ Çalışıyor: kullanıcı kendi OpenRouter key'ini girip DB'de şifreli saklıyor, modelleri/başkanı Ayarlar ekranından serbestçe seçiyor
 - ✅ Çalışıyor: Ayarlar ekranında canlı model kataloğu (ücretsiz/ücretli rozeti, fiyat, kredi/limit durumu)
 - ✅ Çalışıyor: sonuçların DB'ye tam transcript olarak kaydedilmesi
-- ✅ Çalışıyor: React frontend — Konsey/Ayarlar sekmeleri, soru sor, final cevabı gör, "Süreci göster" ile ara aşamaları incele
-- ❌ Henüz yok: testler, konuşma geçmişi listeleme (backend'de kayıtlı ama UI/endpoint yok), prod deploy/CORS ayarları, Ollama desteği
+- ✅ Çalışıyor: React frontend — Konsey/Ayarlar/Geçmiş sekmeleri, soru sor, final cevabı gör, "Süreci göster" ile ara aşamaları incele
+- ✅ Çalışıyor: konuşma geçmişi — tüm eski sorular listelenir, herhangi birine tıklayınca o konuşmanın tam transcript'i (ilk görüşler, review'lar, final cevap) tekrar görüntülenir; eski mimari dönemlerden (g4f, sabit kimlikler) kalan kayıtlar da geriye dönük uyumlu şekilde açılır
+- ❌ Henüz yok: testler, prod deploy/CORS ayarları, Ollama desteği

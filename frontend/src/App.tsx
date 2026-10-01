@@ -5,8 +5,9 @@ import { PromptForm } from './components/PromptForm';
 import { FinalAnswer } from './components/FinalAnswer';
 import { ProcessDetails } from './components/ProcessDetails';
 import { SettingsPage } from './components/SettingsPage';
+import { HistoryPage } from './components/HistoryPage';
 
-type View = 'council' | 'settings';
+type View = 'council' | 'settings' | 'history';
 
 function App() {
   const [view, setView] = useState<View>('council');
@@ -55,12 +56,17 @@ function App() {
           <button className={view === 'settings' ? 'active' : ''} onClick={() => setView('settings')}>
             Ayarlar
           </button>
+          <button className={view === 'history' ? 'active' : ''} onClick={() => setView('history')}>
+            Geçmiş
+          </button>
         </nav>
       </div>
 
-      {view === 'settings' ? (
-        <SettingsPage onSaved={handleSettingsSaved} />
-      ) : (
+      {view === 'settings' && <SettingsPage onSaved={handleSettingsSaved} />}
+
+      {view === 'history' && <HistoryPage />}
+
+      {view === 'council' && (
         <>
           <p className="subtitle">
             Sorunu birden fazla AI modeline sor, birbirlerini değerlendirsinler, başkan sentezlesin.

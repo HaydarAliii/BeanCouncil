@@ -43,6 +43,12 @@ export type KeyStatus = {
   limitRemaining: number | null;
 };
 
+export type ConversationSummary = {
+  id: number;
+  prompt: string;
+  createdAt: string;
+};
+
 /** Backend hata gövdesi `{ error: "..." }` ise onu, yoksa HTTP durumunu mesaj olarak kullanır. */
 async function handle<T>(response: Response, fallbackMessage: string): Promise<T> {
   if (!response.ok) {
@@ -92,4 +98,14 @@ export async function getModels(): Promise<ModelInfo[]> {
 export async function getKeyStatus(): Promise<KeyStatus> {
   const response = await fetch('/api/models/key');
   return handle(response, 'Key durumu alınamadı');
+}
+
+export async function getConversations(): Promise<ConversationSummary[]> {
+  const response = await fetch('/api/conversations');
+  return handle(response, 'Geçmiş alınamadı');
+}
+
+export async function getConversationDetail(id: number): Promise<CouncilResult> {
+  const response = await fetch(`/api/conversations/${id}`);
+  return handle(response, 'Konuşma alınamadı');
 }
