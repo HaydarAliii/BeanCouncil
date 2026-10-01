@@ -8,6 +8,12 @@
   --accent-bg: rgba(170, 59, 255, 0.1);
   --error: #d1293d;
   --error-bg: rgba(209, 41, 61, 0.08);
+  --success: #15803d;
+  --success-bg: rgba(21, 128, 61, 0.1);
+  --free: #15803d;
+  --free-bg: rgba(21, 128, 61, 0.12);
+  --paid: #b45309;
+  --paid-bg: rgba(180, 83, 9, 0.12);
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
@@ -31,6 +37,12 @@
     --accent-bg: rgba(192, 132, 252, 0.15);
     --error: #f87171;
     --error-bg: rgba(248, 113, 113, 0.12);
+    --success: #4ade80;
+    --success-bg: rgba(74, 222, 128, 0.12);
+    --free: #4ade80;
+    --free-bg: rgba(74, 222, 128, 0.15);
+    --paid: #fbbf24;
+    --paid-bg: rgba(251, 191, 36, 0.15);
   }
 }
 
@@ -50,6 +62,40 @@ h4 {
   max-width: 760px;
   margin: 0 auto;
   padding: 40px 20px 80px;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.app-header h1 {
+  margin: 0;
+}
+
+.view-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.view-tabs button {
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 16px;
+  cursor: pointer;
+}
+
+.view-tabs button.active {
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-color: transparent;
 }
 
 .subtitle {
@@ -102,6 +148,7 @@ h4 {
   padding: 20px;
   border: 1px solid var(--border);
   border-radius: 12px;
+  overflow-wrap: anywhere;
 }
 
 .president-badge {
@@ -155,6 +202,9 @@ h4 {
 
 .opinion-grid {
   display: grid;
+  /* minmax(0, 1fr) olmadan grid sütunu, içindeki en uzun boşluksuz token'a (ör. model id,
+     kod satırı) göre otomatik genişler ve tüm sayfayı taşırır (.app'in max-width'ini aşar). */
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   margin-bottom: 24px;
 }
@@ -163,9 +213,144 @@ h4 {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 14px 16px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .opinion-card h4 {
   margin: 0 0 8px;
   font-size: 15px;
+}
+
+/* --- Ayarlar sayfası --- */
+
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  margin-top: 24px;
+}
+
+.settings-hint {
+  font-size: 14px;
+  margin: 4px 0 12px;
+}
+
+.settings-panel input[type='password'],
+.settings-panel input[type='text'] {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  color: var(--text-h);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.key-status code {
+  font-family: var(--mono);
+  background: var(--code-bg);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.credit-status {
+  font-size: 14px;
+  color: var(--accent);
+  margin: 0 0 12px;
+}
+
+.model-filter {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  color: var(--text-h);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.model-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 420px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px;
+}
+
+.model-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.model-row:hover {
+  background: var(--code-bg);
+}
+
+.model-row-selected {
+  background: var(--accent-bg);
+}
+
+.model-name {
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.model-id {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+}
+
+.model-badge {
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 2px 10px;
+  white-space: nowrap;
+}
+
+.badge-free {
+  color: var(--free);
+  background: var(--free-bg);
+}
+
+.badge-paid {
+  color: var(--paid);
+  background: var(--paid-bg);
+}
+
+.save-settings-button {
+  align-self: flex-start;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 24px;
+  cursor: pointer;
+}
+
+.save-settings-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.save-success {
+  color: var(--success);
+  background: var(--success-bg);
+  border-radius: 8px;
+  padding: 10px 14px;
 }

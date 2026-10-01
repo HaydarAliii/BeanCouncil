@@ -18,9 +18,14 @@ public class WebClientConfig {
      */
     private static final Duration RESPONSE_TIMEOUT = Duration.ofSeconds(30);
 
+    /** Spring'in varsayılan 256KB bellek-içi tampon sınırı OpenRouter'ın /models yanıtı (464+ model) için yetersiz. */
+    private static final int MAX_IN_MEMORY_SIZE = 10 * 1024 * 1024;
+
     @Bean
     public WebClient.Builder webClientBuilder() {
         HttpClient httpClient = HttpClient.create().responseTimeout(RESPONSE_TIMEOUT);
-        return WebClient.builder().clientConnector(new ReactorClientHttpConnector(httpClient));
+        return WebClient.builder()
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(MAX_IN_MEMORY_SIZE));
     }
 }

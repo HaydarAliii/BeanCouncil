@@ -7,19 +7,20 @@ import com.llmcouncil.model.entity.ConversationEntity;
 import com.llmcouncil.repository.ConversationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
- * Konsey iş akışının 3 aşaması: first opinions (paralel fan-out) → peer review
- * (anonimleştirilmiş karşılıklı eleştiri) → final sentez (sabit başkan model).
+ * Konsey iş akışının 3 aşaması: first opinions (paralel fan-out, başkan HARİÇ) → peer review
+ * (anonimleştirilmiş karşılıklı eleştiri, başkan HARİÇ) → final sentez (sadece başkan).
+ * Başkan artık kendi görüşünü vermez/eleştiri yapmaz — sadece diğer üyeleri dinleyip nihai
+ * kararı veren saf bir hakem rolündedir. Üyeler ve başkan, her çağrıda kullanıcının kayıtlı
+ * ayarlarından (bkz. {@link CouncilMemberFactory}) dinamik olarak kurulur.
  * Sonuç, tam süreciyle (transcript) birlikte kalıcı hale getirilir.
  */
 @Service
@@ -27,39 +28,49 @@ public class CouncilService {
 
     private static final Logger log = LoggerFactory.getLogger(CouncilService.class);
 
-    private final List<LlmProviderAdapter> providers;
-    private final Map<String, LlmProviderAdapter> providersByName;
-    private final String presidentProviderName;
+    private final CouncilMemberFactory memberFactory;
+    private final SettingsService settingsService;
     private final ConversationRepository repository;
     private final ObjectMapper objectMapper;
 
-    public CouncilService(List<LlmProviderAdapter> providers,
-                           @Value("${llm.council.president}") String presidentProviderName,
+    public CouncilService(CouncilMemberFactory memberFactory,
+                           SettingsService settingsService,
                            ConversationRepository repository,
                            ObjectMapper objectMapper) {
-        this.providers = providers;
-        this.providersByName = providers.stream()
-                .collect(Collectors.toMap(LlmProviderAdapter::getProviderName, p -> p));
-        this.presidentProviderName = presidentProviderName;
+        this.memberFactory = memberFactory;
+        this.settingsService = settingsService;
         this.repository = repository;
         this.objectMapper = objectMapper;
     }
 
     public CouncilResult deliberate(String prompt) {
-        List<LlmResponse> firstOpinions = collectFirstOpinions(prompt);
+        List<LlmProviderAdapter> allMembers = memberFactory.buildAllMembers();
+        String presidentId = settingsService.getDecryptedSettingsOrThrow().presidentModelId();
+
+        LlmProviderAdapter president = allMembers.stream()
+                .filter(member -> member.getProviderName().equals(presidentId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "Başkan modeli ('" + presidentId + "') seçili üyeler arasında bulunamadı."));
+
+        List<LlmProviderAdapter> councilors = allMembers.stream()
+                .filter(member -> !member.getProviderName().equals(presidentId))
+                .toList();
+
+        List<LlmResponse> firstOpinions = collectFirstOpinions(councilors, prompt);
 
         List<LlmResponse> reviews;
         String actualPresident;
         String finalAnswer;
         if (firstOpinions.stream().anyMatch(LlmResponse::success)) {
-            reviews = collectReviews(prompt, firstOpinions);
-            SynthesisResult synthesis = synthesize(resolvePresident(), prompt, firstOpinions, reviews);
+            reviews = collectReviews(councilors, prompt, firstOpinions);
+            SynthesisResult synthesis = synthesize(president, councilors, prompt, firstOpinions, reviews);
             actualPresident = synthesis.providerName();
             finalAnswer = synthesis.finalAnswer();
         } else {
             reviews = List.of();
-            actualPresident = presidentProviderName;
-            finalAnswer = "The council could not produce an answer because all providers failed.";
+            actualPresident = presidentId;
+            finalAnswer = "The council could not produce an answer because all members failed.";
         }
 
         CouncilResult result = new CouncilResult(prompt, firstOpinions, reviews, actualPresident, finalAnswer);
@@ -67,8 +78,8 @@ public class CouncilService {
         return result;
     }
 
-    public List<LlmResponse> collectFirstOpinions(String prompt) {
-        List<CompletableFuture<LlmResponse>> futures = providers.stream()
+    private List<LlmResponse> collectFirstOpinions(List<LlmProviderAdapter> councilors, String prompt) {
+        List<CompletableFuture<LlmResponse>> futures = councilors.stream()
                 .map(provider -> provider.generateResponse(prompt))
                 .toList();
 
@@ -77,10 +88,10 @@ public class CouncilService {
                 .toList();
     }
 
-    private List<LlmResponse> collectReviews(String prompt, List<LlmResponse> firstOpinions) {
+    private List<LlmResponse> collectReviews(List<LlmProviderAdapter> councilors, String prompt, List<LlmResponse> firstOpinions) {
         List<AnonymizedOpinion> anonymized = anonymize(firstOpinions);
 
-        List<CompletableFuture<LlmResponse>> futures = providers.stream()
+        List<CompletableFuture<LlmResponse>> futures = councilors.stream()
                 .map(provider -> buildReviewFuture(provider, prompt, anonymized))
                 .toList();
 
@@ -114,7 +125,8 @@ public class CouncilService {
         return provider.generateResponse(reviewPrompt);
     }
 
-    private SynthesisResult synthesize(LlmProviderAdapter president, String prompt, List<LlmResponse> firstOpinions, List<LlmResponse> reviews) {
+    private SynthesisResult synthesize(LlmProviderAdapter president, List<LlmProviderAdapter> councilors,
+                                        String prompt, List<LlmResponse> firstOpinions, List<LlmResponse> reviews) {
         String opinionsBlock = formatBlock(anonymize(firstOpinions));
         String reviewsBlock = reviews.stream()
                 .filter(LlmResponse::success)
@@ -122,7 +134,8 @@ public class CouncilService {
                 .collect(Collectors.joining("\n\n"));
 
         String synthesisPrompt = """
-                You are the president of a council of AI models. Below are the council members' initial \
+                You are the president of a council of AI models. You did NOT give your own answer — \
+                your role is purely to listen and judge. Below are the council members' initial \
                 answers and their peer reviews of each other. Synthesize a single best final answer to the \
                 original question, drawing on the strongest points raised.
 
@@ -142,10 +155,7 @@ public class CouncilService {
 
         log.warn("Council president '{}' failed to synthesize ({}); trying other members",
                 president.getProviderName(), response.errorMessage());
-        for (LlmProviderAdapter fallback : providers) {
-            if (fallback == president) {
-                continue;
-            }
+        for (LlmProviderAdapter fallback : councilors) {
             LlmResponse fallbackResponse = fallback.generateResponse(synthesisPrompt).join();
             if (fallbackResponse.success()) {
                 return new SynthesisResult(fallback.getProviderName(), fallbackResponse.content());
@@ -155,20 +165,6 @@ public class CouncilService {
     }
 
     private record SynthesisResult(String providerName, String finalAnswer) {
-    }
-
-    private LlmProviderAdapter resolvePresident() {
-        LlmProviderAdapter configured = providersByName.get(presidentProviderName);
-        if (configured != null) {
-            return configured;
-        }
-        if (providers.isEmpty()) {
-            throw new IllegalStateException("No LLM providers are registered; check .env / application.yml");
-        }
-        LlmProviderAdapter fallback = providers.get(0);
-        log.warn("Configured council president '{}' has no matching provider; falling back to '{}'",
-                presidentProviderName, fallback.getProviderName());
-        return fallback;
     }
 
     private void persist(CouncilResult result) {

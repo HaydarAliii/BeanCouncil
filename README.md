@@ -1,22 +1,25 @@
-# LLM Council
+# BeanCouncil
 
-Andrej Karpathy'nin [llm-council](https://github.com/karpathy/llm-council) ve jacob-bd'nin [the-ai-counsel](https://github.com/jacob-bd/the-ai-counsel) projelerinden ilham alan, Java/Spring Boot + React tabanlı çoklu ajan (multi-agent) yapay zeka konsey uygulaması. Orijinal Python/FastAPI mimarisi yerine Spring Boot kullanılıyor. the-ai-counsel'daki gibi **tamamen resmi API'ler** üzerinden çalışır — hiçbir reverse-engineering/key'siz "ücretsiz" servis kullanılmaz.
+Andrej Karpathy'nin [llm-council](https://github.com/karpathy/llm-council) ve jacob-bd'nin [the-ai-counsel](https://github.com/jacob-bd/the-ai-counsel) projelerinden ilham alan, Java/Spring Boot + React tabanlı çoklu ajan (multi-agent) yapay zeka konsey uygulaması. Orijinal Python/FastAPI mimarisi yerine Spring Boot kullanılıyor. the-ai-counsel'daki gibi **tamamen resmi API'ler** üzerinden çalışır — hiçbir reverse-engineering/key'siz "ücretsiz" servis kullanılmaz. Tek key kaynağı [OpenRouter](https://openrouter.ai): tek bir OpenRouter API key'i ile 400'den fazla modele (OpenAI, Anthropic, Google, xAI ve daha fazlası) resmi şekilde erişilir.
+
+Yerel/tek kullanıcılık bir araç olarak tasarlandı — çoklu kullanıcı/hesap sistemi, kimlik doğrulama veya barındırma/dağıtım hedefi yok.
 
 ## Mimari
 
 Konsey mantığı 3 aşamalı bir iş akışı olarak tasarlandı:
 
-1. **First Opinions** — kullanıcı sorusu, kayıtlı tüm LLM sağlayıcılarına paralel olarak gönderilir.
-2. **Peer Review** — modellerin ilk cevapları anonimleştirilir ("Response A/B/..."), her model diğerlerinin cevabını eleştirir.
-3. **Final Sentez** — sabit bir "konsey başkanı" model, tüm görüş ve eleştirileri toplayıp nihai cevabı üretir.
+1. **First Opinions** — kullanıcı sorusu, başkan hariç tüm seçili konsey üyelerine paralel olarak gönderilir.
+2. **Peer Review** — üyelerin ilk cevapları anonimleştirilir ("Response A/B/..."), her üye diğerlerinin cevabını eleştirir.
+3. **Final Sentez** — **konsey başkanı kendi görüşünü hiç vermez**; sadece diğer üyelerin görüş ve eleştirilerini okuyup nihai cevabı üretir (saf hakem/moderatör rolü).
 
 Sonuç (ilk görüşler + review'lar + final cevap) DB'ye JSON transcript olarak kaydedilir.
 
-Konsey 4 sabit kimlikten oluşur: **gpt, gemini, claude, grok**. Her kimlik `LlmProviderAdapter` arayüzü (Strategy/Adapter pattern) üzerinden, önce kendi resmi/direkt sağlayıcısını (key varsa) dener; o yoksa [OpenRouter](https://openrouter.ai) üzerinden aynı modele ulaşmayı dener (`FallbackAdapter`, Decorator pattern). İkisi de yoksa o kimlik konseyde hiç görünmez — hiçbir zaman sahte/yanıltıcı bir yedek kullanılmaz.
+Konsey üyeleri ve başkan **kullanıcı tarafından çalışma zamanında seçilir** — koda/config'e gömülü sabit kimlik yoktur:
 
-- **gpt** → Groq (`openai/gpt-oss-120b`, ücretsiz katman) veya OpenRouter'ın gerçekten ücretsiz `openai/gpt-oss-20b:free` modeli
-- **gemini** → Google AI Studio (ücretsiz katman) veya OpenRouter
-- **claude**, **grok** → resmi Anthropic/xAI API key'i veya OpenRouter bakiyesi gerekir — bu ikisinin hiçbir yerde ücretsiz API'si yok, bilinçli bir sınırlama
+- Kullanıcı kendi OpenRouter API key'ini uygulamanın **Ayarlar** ekranından girer. Key, backend'de AES-256-GCM ile şifreli olarak tek-satırlık bir `app_settings` tablosunda saklanır; API hiçbir zaman key'i tam haliyle geri döndürmez (sadece "var/yok" + son 4 hane).
+- Ayarlar ekranı OpenRouter'ın güncel model kataloğunu (400+ model) anlık olarak gösterir: her model için ücretsiz/ücretli rozeti, fiyat ve kayıtlı key'in kredi/limit durumu.
+- Kullanıcı istediği modelleri seçip aralarından birini başkan yapar. Üye kimliği doğrudan OpenRouter model id'sidir (ör. `anthropic/claude-sonnet-5`).
+- Hem key hem de model seçimi girilene kadar konsey çalışmaz; backend bu durumda `428 Precondition Required` + açık bir hata mesajı döner (sessizce `500` vermez).
 
 ## Proje Yapısı
 
@@ -27,24 +30,28 @@ llmKonsey/
 │   ├── docker-compose.yml   (Postgres)
 │   ├── .env.example
 │   └── src/main/java/com/llmcouncil/
-│       ├── adapter/     LlmProviderAdapter, OpenAiCompatibleAdapter, ClaudeAdapter, GeminiAdapter, FallbackAdapter
-│       ├── config/      WebClient (timeout dahil), CouncilProvidersConfig (4 kimlik bean'i)
-│       ├── controller/  REST endpoint'leri
-│       ├── model/       dto (record) ve JPA entity'leri
+│       ├── adapter/     LlmProviderAdapter, OpenAiCompatibleAdapter (tek, generic OpenRouter adaptörü)
+│       ├── config/      WebClient (timeout + büyük yanıt tamponu dahil)
+│       ├── controller/  CouncilController, SettingsController, ModelsController
+│       ├── exception/   SettingsNotConfiguredException, OpenRouterUnauthorizedException, GlobalExceptionHandler
+│       ├── model/       dto (record) ve JPA entity'leri (AppSettingsEntity dahil)
 │       ├── repository/  Spring Data JPA repository'leri
-│       └── service/     Konsey iş akışı (3 aşama + persistence)
+│       ├── service/     CouncilService (3 aşama), CouncilMemberFactory (dinamik üye kurulumu),
+│       │                SettingsService, OpenRouterCatalogService
+│       └── util/        SecretCipher (AES-256-GCM key şifreleme)
 └── frontend/             React + Vite + TypeScript arayüzü
     └── src/
         ├── api.ts        Backend ile tip-güvenli iletişim
-        └── components/   PromptForm, FinalAnswer, ProcessDetails
+        └── components/   PromptForm, FinalAnswer, ProcessDetails, SettingsPage, SettingsPanel, ModelPicker
 ```
 
 ## Teknoloji Yığını
 
 **Backend**
 - Java 21, Spring Boot 4.1
-- Spring Web (MVC, blocking) + WebClient (sadece dış LLM çağrıları için, 30sn timeout ile)
+- Spring Web (MVC, blocking) + WebClient (sadece dış LLM/OpenRouter çağrıları için, 30sn timeout + 10MB yanıt tamponu ile)
 - Spring Data JPA + PostgreSQL
+- Spring Security Crypto (`Encryptors.delux`, AES-256-GCM) — key şifreleme
 - Resilience4j (Retry, RateLimiter)
 - Docker Compose (Postgres)
 - `.env` tabanlı konfigürasyon (spring-dotenv)
@@ -56,13 +63,16 @@ llmKonsey/
 
 ## Çalıştırma
 
-Gereksinimler: Java 21+, Maven, Docker Desktop, Node 20+.
+Gereksinimler: Java 21+, Maven, Docker Desktop, Node 20+, bir [OpenRouter](https://openrouter.ai/keys) hesabı/key'i (ücretsiz oluşturulur, kart istemez).
 
 ```bash
 # Backend
 cd backend
-cp .env.example .env        # en az GROQ_API_KEY veya GEMINI_API_KEY gir (ikisi de ücretsiz, kart istemez)
-docker compose up -d        # Postgres
+cp .env.example .env
+# APP_CRYPTO_SECRET / APP_CRYPTO_SALT üret ve .env'e yapıştır:
+openssl rand -base64 32   # -> APP_CRYPTO_SECRET
+openssl rand -hex 16      # -> APP_CRYPTO_SALT
+docker compose up -d      # Postgres
 mvn spring-boot:run
 ```
 
@@ -70,10 +80,12 @@ mvn spring-boot:run
 # Frontend (ayrı terminalde)
 cd frontend
 npm install
-npm run dev                 # http://localhost:5173
+npm run dev                 # http://localhost:5173 (port doluysa Vite otomatik sonraki boş portu seçer)
 ```
 
-API'yi doğrudan test etmek için:
+Tarayıcıda uygulamayı açtığında henüz ayar yapılmamışsa otomatik olarak **Ayarlar** sekmesine yönlendirilirsin: OpenRouter key'ini gir, listeden en az 2 model seç, birini başkan yap, kaydet. Bundan sonra **Konsey** sekmesinden soru sorabilirsin.
+
+API'yi doğrudan test etmek için (ayarlar zaten yapılmışsa):
 
 ```bash
 curl -X POST http://localhost:8080/api/council/ask \
@@ -81,11 +93,13 @@ curl -X POST http://localhost:8080/api/council/ask \
   -d '{"prompt":"merhaba"}'
 ```
 
-**Not**: tek bir key ile (örn. sadece `GROQ_API_KEY`) konsey tek üyeli çalışır — peer review anlamsızlaşır. Gerçek bir konsey deneyimi için en az `GROQ_API_KEY` + `GEMINI_API_KEY` (ikisi de ücretsiz) girilmesi önerilir. `claude`/`grok`'un aktif olması için `ANTHROPIC_API_KEY`/`XAI_API_KEY` veya `OPENROUTER_API_KEY` (bakiye yüklenmiş) gerekir.
+**Not**: OpenRouter'ın `:free` etiketli modelleri (400+ model içinden ~20 tanesi) tamamen ücretsizdir ama paylaşımlı havuzları zaman zaman rate-limit'e takılabilir. Büyük/isimli modeller (gpt, claude, gemini, grok ailesi) OpenRouter'da hep ücretlidir — bunları kullanmak için hesabına kredi yüklemen gerekir.
 
 ## Mevcut Durum
 
-- ✅ Çalışıyor: 3 aşamalı konsey akışı uçtan uca (first opinions → peer review → final sentez), 4 sabit kimlik (gpt/gemini/claude/grok), her biri resmi API → OpenRouter fallback deseniyle
+- ✅ Çalışıyor: 3 aşamalı konsey akışı uçtan uca (first opinions → peer review → final sentez), başkan ilk görüş/review aşamalarına katılmadan saf hakem olarak sentez yapıyor
+- ✅ Çalışıyor: kullanıcı kendi OpenRouter key'ini girip DB'de şifreli saklıyor, modelleri/başkanı Ayarlar ekranından serbestçe seçiyor
+- ✅ Çalışıyor: Ayarlar ekranında canlı model kataloğu (ücretsiz/ücretli rozeti, fiyat, kredi/limit durumu)
 - ✅ Çalışıyor: sonuçların DB'ye tam transcript olarak kaydedilmesi
-- ✅ Çalışıyor: React frontend — soru sor, final cevabı gör, "Süreci göster" ile ara aşamaları incele
+- ✅ Çalışıyor: React frontend — Konsey/Ayarlar sekmeleri, soru sor, final cevabı gör, "Süreci göster" ile ara aşamaları incele
 - ❌ Henüz yok: testler, konuşma geçmişi listeleme (backend'de kayıtlı ama UI/endpoint yok), prod deploy/CORS ayarları, Ollama desteği

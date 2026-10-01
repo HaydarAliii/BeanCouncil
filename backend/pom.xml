@@ -44,6 +44,12 @@
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
+        <!-- Kullanıcının OpenRouter key'ini DB'de şifreli saklamak için (Encryptors.delux, AES-256-GCM) -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+
         <!-- Resilience4j'nin @Retry / @RateLimiter anotasyonları AOP proxy gerektirir (Spring Boot 4: starter-aop -> starter-aspectj) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

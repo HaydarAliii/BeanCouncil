@@ -17,32 +17,14 @@ server:
   port: 8080
 
 llm:
-  council:
-    president: claude
   providers:
-    groq:
-      base-url: https://api.groq.com/openai/v1
-      api-key: ${GROQ_API_KEY:}
-      model: openai/gpt-oss-120b
-    gemini:
-      base-url: https://generativelanguage.googleapis.com/v1beta
-      api-key: ${GEMINI_API_KEY:}
-      model: gemini-2.0-flash
-    claude:
-      base-url: https://api.anthropic.com/v1
-      api-key: ${ANTHROPIC_API_KEY:}
-      model: claude-sonnet-4-5
-    grok:
-      base-url: https://api.x.ai/v1
-      api-key: ${XAI_API_KEY:}
-      model: grok-4
     openrouter:
       base-url: https://openrouter.ai/api/v1
-      api-key: ${OPENROUTER_API_KEY:}
-      model-gpt: openai/gpt-oss-20b:free
-      model-gemini: google/gemini-2.0-flash-001
-      model-claude: anthropic/claude-3.5-sonnet
-      model-grok: x-ai/grok-2
+
+app:
+  crypto:
+    secret: ${APP_CRYPTO_SECRET:}
+    salt: ${APP_CRYPTO_SALT:}
 
 resilience4j:
   retry:

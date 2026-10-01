@@ -22,7 +22,10 @@ public class OpenAiCompatibleAdapter implements LlmProviderAdapter {
 
     public OpenAiCompatibleAdapter(WebClient.Builder webClientBuilder, String baseUrl, String model,
                                     String providerName, String apiKey) {
-        WebClient.Builder builder = webClientBuilder.baseUrl(baseUrl);
+        // webClientBuilder paylaşımlı bir singleton bean olabilir (ör. CouncilMemberFactory her
+        // istek/model için bunu yeniden kullanır) — clone() olmadan baseUrl/header çağrıları
+        // builder'ı yerinde mutate edip diğer tüm kullanımları da etkiler.
+        WebClient.Builder builder = webClientBuilder.clone().baseUrl(baseUrl);
         if (apiKey != null && !apiKey.isBlank()) {
             builder = builder.defaultHeader("Authorization", "Bearer " + apiKey);
         }

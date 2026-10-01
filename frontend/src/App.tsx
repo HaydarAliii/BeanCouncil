@@ -1,14 +1,29 @@
-import { useState } from 'react';
-import { askCouncil } from './api';
+import { useEffect, useState } from 'react';
+import { askCouncil, getSettings } from './api';
 import type { CouncilResult } from './api';
 import { PromptForm } from './components/PromptForm';
 import { FinalAnswer } from './components/FinalAnswer';
 import { ProcessDetails } from './components/ProcessDetails';
+import { SettingsPage } from './components/SettingsPage';
+
+type View = 'council' | 'settings';
 
 function App() {
+  const [view, setView] = useState<View>('council');
+  const [configured, setConfigured] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<CouncilResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getSettings()
+      .then((settings) => {
+        const ready = settings.hasKey && settings.selectedModelIds.length >= 2 && !!settings.presidentModelId;
+        setConfigured(ready);
+        if (!ready) setView('settings');
+      })
+      .catch(() => setConfigured(false));
+  }, []);
 
   async function handleSubmit(prompt: string) {
     setLoading(true);
@@ -24,21 +39,50 @@ function App() {
     }
   }
 
+  function handleSettingsSaved() {
+    setConfigured(true);
+    setView('council');
+  }
+
   return (
     <main className="app">
-      <h1>LLM Council</h1>
-      <p className="subtitle">
-        Sorunu birden fazla AI modeline sor, birbirlerini değerlendirsinler, başkan sentezlesin.
-      </p>
+      <div className="app-header">
+        <h1>BeanCouncil</h1>
+        <nav className="view-tabs">
+          <button className={view === 'council' ? 'active' : ''} onClick={() => setView('council')}>
+            Konsey
+          </button>
+          <button className={view === 'settings' ? 'active' : ''} onClick={() => setView('settings')}>
+            Ayarlar
+          </button>
+        </nav>
+      </div>
 
-      <PromptForm loading={loading} onSubmit={handleSubmit} />
-
-      {error && <p className="error-text">{error}</p>}
-
-      {result && (
+      {view === 'settings' ? (
+        <SettingsPage onSaved={handleSettingsSaved} />
+      ) : (
         <>
-          <FinalAnswer result={result} />
-          <ProcessDetails result={result} />
+          <p className="subtitle">
+            Sorunu birden fazla AI modeline sor, birbirlerini değerlendirsinler, başkan sentezlesin.
+          </p>
+
+          {configured === false && (
+            <p className="error-text">
+              Henüz yapılandırma tamamlanmadı. Lütfen Ayarlar sekmesinden OpenRouter key'ini gir ve konsey
+              üyelerini seç.
+            </p>
+          )}
+
+          <PromptForm loading={loading} onSubmit={handleSubmit} />
+
+          {error && <p className="error-text">{error}</p>}
+
+          {result && (
+            <>
+              <FinalAnswer result={result} />
+              <ProcessDetails result={result} />
+            </>
+          )}
         </>
       )}
     </main>
