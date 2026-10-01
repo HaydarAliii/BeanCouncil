@@ -1,5 +1,7 @@
 # BeanCouncil
 
+`spring-boot` · `java` · `react` · `typescript` · `openrouter` · `llm` · `multi-agent` · `postgresql` · `vite` · `docker`
+
 Andrej Karpathy'nin [llm-council](https://github.com/karpathy/llm-council) ve jacob-bd'nin [the-ai-counsel](https://github.com/jacob-bd/the-ai-counsel) projelerinden ilham alan, Java/Spring Boot + React tabanlı çoklu ajan (multi-agent) yapay zeka konsey uygulaması. Orijinal Python/FastAPI mimarisi yerine Spring Boot kullanılıyor. the-ai-counsel'daki gibi **tamamen resmi API'ler** üzerinden çalışır — hiçbir reverse-engineering/key'siz "ücretsiz" servis kullanılmaz. Tek key kaynağı [OpenRouter](https://openrouter.ai): tek bir OpenRouter API key'i ile 400'den fazla modele (OpenAI, Anthropic, Google, xAI ve daha fazlası) resmi şekilde erişilir.
 
 Yerel/tek kullanıcılık bir araç olarak tasarlandı — çoklu kullanıcı/hesap sistemi, kimlik doğrulama veya barındırma/dağıtım hedefi yok.
