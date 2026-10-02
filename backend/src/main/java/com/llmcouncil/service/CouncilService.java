@@ -1,10 +1,13 @@
 package com.llmcouncil.service;
 
 import com.llmcouncil.adapter.LlmProviderAdapter;
+import com.llmcouncil.exception.ConversationNotFoundException;
 import com.llmcouncil.model.dto.CouncilResult;
 import com.llmcouncil.model.dto.LlmResponse;
 import com.llmcouncil.model.entity.ConversationEntity;
+import com.llmcouncil.model.entity.ConversationThreadEntity;
 import com.llmcouncil.repository.ConversationRepository;
+import com.llmcouncil.repository.ConversationThreadRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -31,19 +34,27 @@ public class CouncilService {
     private final CouncilMemberFactory memberFactory;
     private final SettingsService settingsService;
     private final ConversationRepository repository;
+    private final ConversationThreadRepository threadRepository;
     private final ObjectMapper objectMapper;
 
     public CouncilService(CouncilMemberFactory memberFactory,
                            SettingsService settingsService,
                            ConversationRepository repository,
+                           ConversationThreadRepository threadRepository,
                            ObjectMapper objectMapper) {
         this.memberFactory = memberFactory;
         this.settingsService = settingsService;
         this.repository = repository;
+        this.threadRepository = threadRepository;
         this.objectMapper = objectMapper;
     }
 
-    public CouncilResult deliberate(String prompt) {
+    /** {@code threadId} null ise yeni bir konuşma başlatılır; doluysa o thread'e follow-up olarak eklenir. */
+    public CouncilResult deliberate(String prompt, Long threadId) {
+        long resolvedThreadId = resolveThread(threadId, prompt);
+        List<ConversationEntity> history = repository.findByThreadIdOrderByCreatedAtAsc(resolvedThreadId);
+        String effectivePrompt = buildContextualPrompt(history, prompt);
+
         List<LlmProviderAdapter> allMembers = memberFactory.buildAllMembers();
         String presidentId = settingsService.getDecryptedSettingsOrThrow().presidentModelId();
 
@@ -57,14 +68,14 @@ public class CouncilService {
                 .filter(member -> !member.getProviderName().equals(presidentId))
                 .toList();
 
-        List<LlmResponse> firstOpinions = collectFirstOpinions(councilors, prompt);
+        List<LlmResponse> firstOpinions = collectFirstOpinions(councilors, effectivePrompt);
 
         List<LlmResponse> reviews;
         String actualPresident;
         String finalAnswer;
         if (firstOpinions.stream().anyMatch(LlmResponse::success)) {
-            reviews = collectReviews(councilors, prompt, firstOpinions);
-            SynthesisResult synthesis = synthesize(president, councilors, prompt, firstOpinions, reviews);
+            reviews = collectReviews(councilors, effectivePrompt, firstOpinions);
+            SynthesisResult synthesis = synthesize(president, councilors, effectivePrompt, firstOpinions, reviews);
             actualPresident = synthesis.providerName();
             finalAnswer = synthesis.finalAnswer();
         } else {
@@ -73,9 +84,39 @@ public class CouncilService {
             finalAnswer = "The council could not produce an answer because all members failed.";
         }
 
-        CouncilResult result = new CouncilResult(prompt, firstOpinions, reviews, actualPresident, finalAnswer);
-        persist(result);
+        CouncilResult result = new CouncilResult(prompt, firstOpinions, reviews, actualPresident, finalAnswer, resolvedThreadId);
+        persist(result, resolvedThreadId);
         return result;
+    }
+
+    /** @return var olan thread'in id'si, ya da yeni oluşturulan thread'in id'si. */
+    private long resolveThread(Long threadId, String firstPrompt) {
+        if (threadId != null) {
+            ConversationThreadEntity thread = threadRepository.findById(threadId)
+                    .orElseThrow(() -> new ConversationNotFoundException("Konuşma bulunamadı: " + threadId));
+            thread.touch();
+            threadRepository.save(thread);
+            return threadId;
+        }
+        return threadRepository.save(new ConversationThreadEntity(firstPrompt)).getId();
+    }
+
+    /** Önceki turları (varsa) bağlam olarak başa ekler; thread yeni/tekse soruyu olduğu gibi döner. */
+    private String buildContextualPrompt(List<ConversationEntity> history, String latestPrompt) {
+        if (history.isEmpty()) {
+            return latestPrompt;
+        }
+        String historyBlock = history.stream()
+                .map(turn -> "Kullanıcı: " + turn.getPrompt() + "\nKonsey: " + turn.getFinalAnswer())
+                .collect(Collectors.joining("\n\n"));
+
+        return """
+                Bu, devam eden bir konuşmanın parçası. Önceki tur(lar):
+
+                %s
+
+                Kullanıcının yeni sorusu: %s
+                """.formatted(historyBlock, latestPrompt);
     }
 
     private List<LlmResponse> collectFirstOpinions(List<LlmProviderAdapter> councilors, String prompt) {
@@ -167,8 +208,9 @@ public class CouncilService {
     private record SynthesisResult(String providerName, String finalAnswer) {
     }
 
-    private void persist(CouncilResult result) {
+    private void persist(CouncilResult result, long threadId) {
         ConversationEntity entity = new ConversationEntity(result.prompt());
+        entity.setThreadId(threadId);
         entity.setFinalAnswer(result.finalAnswer());
         entity.setTranscript(objectMapper.writeValueAsString(result));
         repository.save(entity);

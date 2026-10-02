@@ -13,7 +13,8 @@ function App() {
   const [view, setView] = useState<View>('council');
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<CouncilResult | null>(null);
+  const [threadId, setThreadId] = useState<number | null>(null);
+  const [turns, setTurns] = useState<CouncilResult[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -29,10 +30,10 @@ function App() {
   async function handleSubmit(prompt: string) {
     setLoading(true);
     setError(null);
-    setResult(null);
     try {
-      const councilResult = await askCouncil(prompt);
-      setResult(councilResult);
+      const councilResult = await askCouncil(prompt, threadId);
+      setTurns((prev) => [...prev, councilResult]);
+      setThreadId(councilResult.threadId);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Beklenmeyen bir hata oluştu.');
     } finally {
@@ -40,8 +41,21 @@ function App() {
     }
   }
 
+  function handleNewConversation() {
+    setThreadId(null);
+    setTurns([]);
+    setError(null);
+  }
+
   function handleSettingsSaved() {
     setConfigured(true);
+    setView('council');
+  }
+
+  function handleContinueFromHistory(id: number, loadedTurns: CouncilResult[]) {
+    setThreadId(id);
+    setTurns(loadedTurns);
+    setError(null);
     setView('council');
   }
 
@@ -64,7 +78,7 @@ function App() {
 
       {view === 'settings' && <SettingsPage onSaved={handleSettingsSaved} />}
 
-      {view === 'history' && <HistoryPage />}
+      {view === 'history' && <HistoryPage onContinue={handleContinueFromHistory} />}
 
       {view === 'council' && (
         <>
@@ -79,16 +93,26 @@ function App() {
             </p>
           )}
 
-          <PromptForm loading={loading} onSubmit={handleSubmit} />
+          {turns.length > 0 && (
+            <button className="new-conversation-button" onClick={handleNewConversation}>
+              + Yeni konuşma
+            </button>
+          )}
+
+          <PromptForm
+            loading={loading}
+            onSubmit={handleSubmit}
+            placeholder={turns.length > 0 ? 'Takip sorunu yaz...' : undefined}
+          />
 
           {error && <p className="error-text">{error}</p>}
 
-          {result && (
-            <>
-              <FinalAnswer result={result} />
-              <ProcessDetails result={result} />
-            </>
-          )}
+          {turns.map((turn, index) => (
+            <div className="conversation-turn" key={index}>
+              <FinalAnswer result={turn} />
+              <ProcessDetails result={turn} />
+            </div>
+          ))}
         </>
       )}
     </main>

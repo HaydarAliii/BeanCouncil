@@ -21,6 +21,6 @@ public class CouncilController {
 
     @PostMapping("/ask")
     public CouncilResult ask(@Valid @RequestBody ChatRequest request) {
-        return councilService.deliberate(request.prompt());
+        return councilService.deliberate(request.prompt(), request.threadId());
     }
 }

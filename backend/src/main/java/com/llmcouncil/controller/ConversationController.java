@@ -23,11 +23,11 @@ public class ConversationController {
 
     @GetMapping
     public List<ConversationSummary> list() {
-        return historyService.listAll();
+        return historyService.listThreads();
     }
 
-    @GetMapping("/{id}")
-    public CouncilResult detail(@PathVariable Long id) {
-        return historyService.getDetail(id);
+    @GetMapping("/{threadId}")
+    public List<CouncilResult> detail(@PathVariable Long threadId) {
+        return historyService.getThreadTurns(threadId);
     }
 }

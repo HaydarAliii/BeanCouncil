@@ -7,5 +7,6 @@ public record CouncilResult(
         List<LlmResponse> firstOpinions,
         List<LlmResponse> reviews,
         String presidentProvider,
-        String finalAnswer) {
+        String finalAnswer,
+        Long threadId) {
 }

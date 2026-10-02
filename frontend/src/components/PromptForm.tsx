@@ -4,9 +4,10 @@ import type { FormEvent } from 'react';
 type PromptFormProps = {
   loading: boolean;
   onSubmit: (prompt: string) => void;
+  placeholder?: string;
 };
 
-export function PromptForm({ loading, onSubmit }: PromptFormProps) {
+export function PromptForm({ loading, onSubmit, placeholder }: PromptFormProps) {
   const [prompt, setPrompt] = useState('');
 
   function handleSubmit(event: FormEvent) {
@@ -16,6 +17,7 @@ export function PromptForm({ loading, onSubmit }: PromptFormProps) {
       return;
     }
     onSubmit(trimmed);
+    setPrompt('');
   }
 
   return (
@@ -23,7 +25,7 @@ export function PromptForm({ loading, onSubmit }: PromptFormProps) {
       <textarea
         value={prompt}
         onChange={(event) => setPrompt(event.target.value)}
-        placeholder="Konseye sormak istediğin soruyu yaz..."
+        placeholder={placeholder ?? 'Konseye sormak istediğin soruyu yaz...'}
         rows={4}
         disabled={loading}
       />

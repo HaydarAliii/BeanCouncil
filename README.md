@@ -34,17 +34,21 @@ llmKonsey/
 │   └── src/main/java/com/llmcouncil/
 │       ├── adapter/     LlmProviderAdapter, OpenAiCompatibleAdapter (tek, generic OpenRouter adaptörü)
 │       ├── config/      WebClient (timeout + büyük yanıt tamponu dahil)
-│       ├── controller/  CouncilController, SettingsController, ModelsController
-│       ├── exception/   SettingsNotConfiguredException, OpenRouterUnauthorizedException, GlobalExceptionHandler
-│       ├── model/       dto (record) ve JPA entity'leri (AppSettingsEntity dahil)
+│       ├── controller/  CouncilController, SettingsController, ModelsController, ConversationController
+│       ├── exception/   SettingsNotConfiguredException, OpenRouterUnauthorizedException,
+│       │                ConversationNotFoundException, GlobalExceptionHandler
+│       ├── model/       dto (record) ve JPA entity'leri (AppSettingsEntity, ConversationThreadEntity dahil)
 │       ├── repository/  Spring Data JPA repository'leri
-│       ├── service/     CouncilService (3 aşama), CouncilMemberFactory (dinamik üye kurulumu),
-│       │                SettingsService, OpenRouterCatalogService
+│       ├── service/     CouncilService (3 aşama + thread/follow-up bağlamı), CouncilMemberFactory
+│       │                (dinamik üye kurulumu), SettingsService, OpenRouterCatalogService,
+│       │                ConversationHistoryService, LegacyConversationMigration (eski kayıtları
+│       │                thread'lere taşıyan tek seferlik başlangıç migration'ı)
 │       └── util/        SecretCipher (AES-256-GCM key şifreleme)
 └── frontend/             React + Vite + TypeScript arayüzü
     └── src/
         ├── api.ts        Backend ile tip-güvenli iletişim
-        └── components/   PromptForm, FinalAnswer, ProcessDetails, SettingsPage, SettingsPanel, ModelPicker
+        └── components/   PromptForm, FinalAnswer, ProcessDetails, SettingsPage, SettingsPanel,
+                           ModelPicker, HistoryPage
 ```
 
 ## Teknoloji Yığını
@@ -104,5 +108,6 @@ curl -X POST http://localhost:8080/api/council/ask \
 - ✅ Çalışıyor: Ayarlar ekranında canlı model kataloğu (ücretsiz/ücretli rozeti, fiyat, kredi/limit durumu)
 - ✅ Çalışıyor: sonuçların DB'ye tam transcript olarak kaydedilmesi
 - ✅ Çalışıyor: React frontend — Konsey/Ayarlar/Geçmiş sekmeleri, soru sor, final cevabı gör, "Süreci göster" ile ara aşamaları incele
-- ✅ Çalışıyor: konuşma geçmişi — tüm eski sorular listelenir, herhangi birine tıklayınca o konuşmanın tam transcript'i (ilk görüşler, review'lar, final cevap) tekrar görüntülenir; eski mimari dönemlerden (g4f, sabit kimlikler) kalan kayıtlar da geriye dönük uyumlu şekilde açılır
+- ✅ Çalışıyor: konuşma geçmişi — thread'ler listelenir, herhangi birine tıklayınca içindeki tüm turlar (ilk görüşler, review'lar, final cevap) sırayla tekrar görüntülenir; eski mimari dönemlerden (g4f, sabit kimlikler) kalan kayıtlar da uygulama ilk açıldığında otomatik olarak kendi thread'lerine taşınıp geriye dönük uyumlu şekilde açılır
+- ✅ Çalışıyor: çok turlu (follow-up) konuşmalar — aynı thread'e yeni bir soru sorulduğunda konsey üyeleri önceki tur(lar)ı bağlam olarak görür; geçmişten de bir konuşmaya "devam et" ile kaldığı yerden sürdürülebilir
 - ❌ Henüz yok: testler, prod deploy/CORS ayarları, Ollama desteği

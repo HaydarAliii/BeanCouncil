@@ -11,6 +11,7 @@ export type CouncilResult = {
   reviews: LlmResponse[];
   presidentProvider: string;
   finalAnswer: string;
+  threadId: number;
 };
 
 export type SettingsResponse = {
@@ -45,8 +46,10 @@ export type KeyStatus = {
 
 export type ConversationSummary = {
   id: number;
-  prompt: string;
+  title: string;
   createdAt: string;
+  updatedAt: string;
+  turnCount: number;
 };
 
 /** Backend hata gövdesi `{ error: "..." }` ise onu, yoksa HTTP durumunu mesaj olarak kullanır. */
@@ -66,11 +69,11 @@ async function handle<T>(response: Response, fallbackMessage: string): Promise<T
   return response.json();
 }
 
-export async function askCouncil(prompt: string): Promise<CouncilResult> {
+export async function askCouncil(prompt: string, threadId: number | null = null): Promise<CouncilResult> {
   const response = await fetch('/api/council/ask', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt }),
+    body: JSON.stringify({ prompt, threadId }),
   });
   return handle(response, 'Konsey isteği başarısız oldu');
 }
@@ -105,7 +108,7 @@ export async function getConversations(): Promise<ConversationSummary[]> {
   return handle(response, 'Geçmiş alınamadı');
 }
 
-export async function getConversationDetail(id: number): Promise<CouncilResult> {
-  const response = await fetch(`/api/conversations/${id}`);
+export async function getConversationDetail(threadId: number): Promise<CouncilResult[]> {
+  const response = await fetch(`/api/conversations/${threadId}`);
   return handle(response, 'Konuşma alınamadı');
 }

@@ -403,12 +403,44 @@ h4 {
   font-size: 13px;
 }
 
-.history-back-button {
+.history-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.history-back-button,
+.history-continue-button {
   font: inherit;
   color: var(--accent);
   background: transparent;
   border: none;
   padding: 0;
-  margin-bottom: 20px;
   cursor: pointer;
+}
+
+/* --- Çok turlu konuşma (follow-up) --- */
+
+.new-conversation-button {
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 16px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.conversation-turn {
+  margin-top: 16px;
+}
+
+.conversation-turn .final-answer {
+  margin-top: 0;
 }

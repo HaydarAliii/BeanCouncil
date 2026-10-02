@@ -26,6 +26,12 @@ public class ConversationEntity {
     @Column(columnDefinition = "TEXT")
     private String transcript;
 
+    /** Bu turun ait olduğu konuşma (thread). Eski (follow-up özelliğinden önceki) kayıtlarda
+     * başlangıçta null olabilir — {@code LegacyConversationMigration} bunları tek turluk kendi
+     * thread'lerine taşır. */
+    @Column
+    private Long threadId;
+
     @Column(nullable = false)
     private Instant createdAt = Instant.now();
 
@@ -62,5 +68,13 @@ public class ConversationEntity {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public Long getThreadId() {
+        return threadId;
+    }
+
+    public void setThreadId(Long threadId) {
+        this.threadId = threadId;
     }
 }

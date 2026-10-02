@@ -4,13 +4,17 @@ import type { ConversationSummary, CouncilResult } from '../api';
 import { FinalAnswer } from './FinalAnswer';
 import { ProcessDetails } from './ProcessDetails';
 
-export function HistoryPage() {
+type HistoryPageProps = {
+  onContinue: (threadId: number, turns: CouncilResult[]) => void;
+};
+
+export function HistoryPage({ onContinue }: HistoryPageProps) {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [detail, setDetail] = useState<CouncilResult | null>(null);
+  const [turns, setTurns] = useState<CouncilResult[] | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
 
@@ -23,11 +27,11 @@ export function HistoryPage() {
 
   async function openConversation(id: number) {
     setSelectedId(id);
-    setDetail(null);
+    setTurns(null);
     setDetailError(null);
     setDetailLoading(true);
     try {
-      setDetail(await getConversationDetail(id));
+      setTurns(await getConversationDetail(id));
     } catch (err) {
       setDetailError(err instanceof Error ? err.message : 'Konuşma alınamadı.');
     } finally {
@@ -38,17 +42,24 @@ export function HistoryPage() {
   if (selectedId !== null) {
     return (
       <div className="history-page">
-        <button className="history-back-button" onClick={() => setSelectedId(null)}>
-          ← Geçmişe dön
-        </button>
+        <div className="history-detail-header">
+          <button className="history-back-button" onClick={() => setSelectedId(null)}>
+            ← Geçmişe dön
+          </button>
+          {turns && (
+            <button className="history-continue-button" onClick={() => onContinue(selectedId, turns)}>
+              Bu konuşmaya devam et →
+            </button>
+          )}
+        </div>
         {detailLoading && <p className="settings-hint">Yükleniyor...</p>}
         {detailError && <p className="error-text">{detailError}</p>}
-        {detail && (
-          <>
-            <FinalAnswer result={detail} />
-            <ProcessDetails result={detail} />
-          </>
-        )}
+        {turns?.map((turn, index) => (
+          <div className="conversation-turn" key={index}>
+            <FinalAnswer result={turn} />
+            <ProcessDetails result={turn} />
+          </div>
+        ))}
       </div>
     );
   }
@@ -65,9 +76,10 @@ export function HistoryPage() {
         {conversations.map((c) => (
           <li key={c.id}>
             <button className="history-item" onClick={() => openConversation(c.id)}>
-              <span className="history-item-prompt">{c.prompt}</span>
+              <span className="history-item-prompt">{c.title}</span>
               <span className="history-item-date">
-                {new Date(c.createdAt).toLocaleString('tr-TR')}
+                {new Date(c.updatedAt).toLocaleString('tr-TR')}
+                {c.turnCount > 1 ? ` · ${c.turnCount} tur` : ''}
               </span>
             </button>
           </li>
