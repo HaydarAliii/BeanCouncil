@@ -1,5 +1,6 @@
 package com.llmcouncil.adapter;
 
+import com.llmcouncil.config.WebClientConfig;
 import com.llmcouncil.model.dto.LlmResponse;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.github.resilience4j.retry.annotation.Retry;
@@ -22,14 +23,7 @@ public class OpenAiCompatibleAdapter implements LlmProviderAdapter {
 
     public OpenAiCompatibleAdapter(WebClient.Builder webClientBuilder, String baseUrl, String model,
                                     String providerName, String apiKey) {
-        // webClientBuilder paylaşımlı bir singleton bean olabilir (ör. CouncilMemberFactory her
-        // istek/model için bunu yeniden kullanır) — clone() olmadan baseUrl/header çağrıları
-        // builder'ı yerinde mutate edip diğer tüm kullanımları da etkiler.
-        WebClient.Builder builder = webClientBuilder.clone().baseUrl(baseUrl);
-        if (apiKey != null && !apiKey.isBlank()) {
-            builder = builder.defaultHeader("Authorization", "Bearer " + apiKey);
-        }
-        this.webClient = builder.build();
+        this.webClient = WebClientConfig.authenticatedClient(webClientBuilder, baseUrl, apiKey);
         this.model = model;
         this.providerName = providerName;
     }

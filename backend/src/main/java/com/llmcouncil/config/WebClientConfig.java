@@ -28,4 +28,18 @@ public class WebClientConfig {
                 .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(MAX_IN_MEMORY_SIZE));
     }
+
+    /**
+     * Paylaşımlı {@code webClientBuilder} bean'inden, verilen base URL'e ve (varsa) Bearer token'a
+     * sahip tek kullanımlık bir {@link WebClient} kurar. {@code clone()} olmadan baseUrl/header
+     * çağrıları paylaşımlı builder'ı yerinde mutate edip diğer tüm kullanımları etkiler — bu yüzden
+     * her çağrıda önce klonlanır. {@code bearerToken} null/boşsa Authorization header hiç eklenmez.
+     */
+    public static WebClient authenticatedClient(WebClient.Builder sharedBuilder, String baseUrl, String bearerToken) {
+        WebClient.Builder builder = sharedBuilder.clone().baseUrl(baseUrl);
+        if (bearerToken != null && !bearerToken.isBlank()) {
+            builder = builder.defaultHeader("Authorization", "Bearer " + bearerToken);
+        }
+        return builder.build();
+    }
 }

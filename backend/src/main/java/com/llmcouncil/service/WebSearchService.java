@@ -1,5 +1,6 @@
 package com.llmcouncil.service;
 
+import com.llmcouncil.config.WebClientConfig;
 import com.llmcouncil.model.dto.WebSearchResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,10 +41,7 @@ public class WebSearchService {
                     "max_results", MAX_RESULTS,
                     "search_depth", "basic");
 
-            Map<String, Object> response = webClientBuilder.clone()
-                    .baseUrl(baseUrl)
-                    .defaultHeader("Authorization", "Bearer " + apiKey)
-                    .build()
+            Map<String, Object> response = WebClientConfig.authenticatedClient(webClientBuilder, baseUrl, apiKey)
                     .post()
                     .uri("/search")
                     .bodyValue(body)

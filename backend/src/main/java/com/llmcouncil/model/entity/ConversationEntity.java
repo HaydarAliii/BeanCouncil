@@ -42,10 +42,6 @@ public class ConversationEntity {
         this.prompt = prompt;
     }
 
-    public Long getId() {
-        return id;
-    }
-
     public String getPrompt() {
         return prompt;
     }
@@ -68,10 +64,6 @@ public class ConversationEntity {
 
     public Instant getCreatedAt() {
         return createdAt;
-    }
-
-    public Long getThreadId() {
-        return threadId;
     }
 
     public void setThreadId(Long threadId) {

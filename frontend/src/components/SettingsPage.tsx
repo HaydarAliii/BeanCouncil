@@ -8,8 +8,7 @@ import {
   type ModelInfo,
   type SettingsResponse,
 } from '../api';
-import { SettingsPanel } from './SettingsPanel';
-import { WebSearchPanel } from './WebSearchPanel';
+import { KeyInputPanel } from './KeyInputPanel';
 import { ModelPicker } from './ModelPicker';
 
 type SettingsPageProps = {
@@ -113,18 +112,32 @@ export function SettingsPage({ onSaved }: SettingsPageProps) {
 
   return (
     <div className="settings-page">
-      <SettingsPanel
+      <KeyInputPanel
+        title="OpenRouter API Key"
+        description="Key'in sadece backend'de şifreli saklanır, hiçbir zaman tam haliyle geri gösterilmez."
         hasKey={settings?.hasKey ?? false}
         keyPreview={settings?.keyPreview ?? null}
         value={keyInput}
         onChange={setKeyInput}
+        emptyPlaceholder="sk-or-v1-..."
       />
 
-      <WebSearchPanel
+      <KeyInputPanel
+        title="Web Araştırması (opsiyonel)"
+        description={
+          <>
+            <a href="https://app.tavily.com/home" target="_blank" rel="noreferrer">
+              Tavily
+            </a>
+            'den ücretsiz bir key alıp girersen, konseye "Web'de ara" seçeneğiyle soru sorabilirsin —
+            üyeler güncel arama sonuçlarını da görerek cevap verir. Boş bırakırsan bu özellik gizli kalır.
+          </>
+        }
         hasKey={settings?.hasTavilyKey ?? false}
         keyPreview={settings?.tavilyKeyPreview ?? null}
         value={tavilyKeyInput}
         onChange={setTavilyKeyInput}
+        emptyPlaceholder="tvly-..."
       />
 
       <ModelPicker

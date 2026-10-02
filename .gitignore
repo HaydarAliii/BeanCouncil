@@ -8,3 +8,6 @@
 
 # Claude Code local settings
 .claude/
+
+# Production secrets (deploy)
+.env.prod

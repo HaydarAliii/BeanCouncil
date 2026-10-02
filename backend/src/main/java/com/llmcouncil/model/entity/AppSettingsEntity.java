@@ -47,10 +47,6 @@ public class AppSettingsEntity {
         this.id = id;
     }
 
-    public Long getId() {
-        return id;
-    }
-
     public String getOpenRouterKeyEncrypted() {
         return openRouterKeyEncrypted;
     }
@@ -81,10 +77,6 @@ public class AppSettingsEntity {
 
     public void setPresidentModelId(String presidentModelId) {
         this.presidentModelId = presidentModelId;
-    }
-
-    public Instant getUpdatedAt() {
-        return updatedAt;
     }
 
     public void setUpdatedAt(Instant updatedAt) {

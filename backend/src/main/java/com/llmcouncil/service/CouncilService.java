@@ -72,7 +72,7 @@ public class CouncilService {
 
         String effectivePrompt = buildContextualPrompt(history, searchResults, prompt);
 
-        List<LlmProviderAdapter> allMembers = memberFactory.buildAllMembers();
+        List<LlmProviderAdapter> allMembers = memberFactory.buildAllMembers(settings);
 
         LlmProviderAdapter president = allMembers.stream()
                 .filter(member -> member.getProviderName().equals(presidentId))

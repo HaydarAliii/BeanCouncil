@@ -2,7 +2,7 @@ spring:
   application:
     name: llm-council
   datasource:
-    url: jdbc:postgresql://localhost:5432/${POSTGRES_DB:llmcouncil}
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:5432/${POSTGRES_DB:llmcouncil}
     username: ${POSTGRES_USER:llmcouncil}
     password: ${POSTGRES_PASSWORD:llmcouncil}
   jpa:

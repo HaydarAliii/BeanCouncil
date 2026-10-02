@@ -1,5 +1,6 @@
 package com.llmcouncil.service;
 
+import com.llmcouncil.config.WebClientConfig;
 import com.llmcouncil.exception.OpenRouterUnauthorizedException;
 import com.llmcouncil.exception.SettingsNotConfiguredException;
 import com.llmcouncil.model.dto.KeyStatus;
@@ -100,10 +101,6 @@ public class OpenRouterCatalogService {
 
     /** OpenRouter'a tek seferlik, request-scope'lu bir client. key null ise Authorization header eklenmez (public /models için yeterli). */
     private WebClient client(String key) {
-        WebClient.Builder builder = webClientBuilder.clone().baseUrl(baseUrl);
-        if (key != null && !key.isBlank()) {
-            builder = builder.defaultHeader("Authorization", "Bearer " + key);
-        }
-        return builder.build();
+        return WebClientConfig.authenticatedClient(webClientBuilder, baseUrl, key);
     }
 }

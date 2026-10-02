@@ -19,20 +19,16 @@ import java.util.List;
 public class CouncilMemberFactory {
 
     private final WebClient.Builder webClientBuilder;
-    private final SettingsService settingsService;
     private final String openRouterBaseUrl;
 
     public CouncilMemberFactory(WebClient.Builder webClientBuilder,
-                                 SettingsService settingsService,
                                  @Value("${llm.providers.openrouter.base-url}") String openRouterBaseUrl) {
         this.webClientBuilder = webClientBuilder;
-        this.settingsService = settingsService;
         this.openRouterBaseUrl = openRouterBaseUrl;
     }
 
-    /** Kayıtlı ayarlardaki tüm seçili üyeleri (başkan dahil) kurar. */
-    public List<LlmProviderAdapter> buildAllMembers() {
-        AppSettings settings = settingsService.getDecryptedSettingsOrThrow();
+    /** Verilen ayarlardaki tüm seçili üyeleri (başkan dahil) kurar. */
+    public List<LlmProviderAdapter> buildAllMembers(AppSettings settings) {
         return settings.selectedModelIds().stream()
                 .map(modelId -> buildMember(modelId, settings.openRouterKey()))
                 .toList();
