@@ -26,6 +26,10 @@ public class AppSettingsEntity {
     @Column(columnDefinition = "TEXT")
     private String openRouterKeyEncrypted;
 
+    /** Web araştırması (Tavily) için opsiyonel, aynı şekilde şifreli key. Boşsa özellik devre dışı. */
+    @Column(columnDefinition = "TEXT")
+    private String tavilyKeyEncrypted;
+
     /** JSON array, örn. ["anthropic/claude-sonnet-5", "openai/gpt-5"] */
     @Column(columnDefinition = "TEXT")
     private String selectedModelIdsJson;
@@ -55,6 +59,14 @@ public class AppSettingsEntity {
         this.openRouterKeyEncrypted = openRouterKeyEncrypted;
     }
 
+    public String getTavilyKeyEncrypted() {
+        return tavilyKeyEncrypted;
+    }
+
+    public void setTavilyKeyEncrypted(String tavilyKeyEncrypted) {
+        this.tavilyKeyEncrypted = tavilyKeyEncrypted;
+    }
+
     public String getSelectedModelIdsJson() {
         return selectedModelIdsJson;
     }
@@ -82,7 +94,7 @@ public class AppSettingsEntity {
     /** Key'in loglara/istem dışı sızmasını önler — asla ham key'i içermez. */
     @Override
     public String toString() {
-        return "AppSettingsEntity{id=%d, hasKey=%s, selectedModelIdsJson=%s, presidentModelId=%s, updatedAt=%s}"
-                .formatted(id, openRouterKeyEncrypted != null, selectedModelIdsJson, presidentModelId, updatedAt);
+        return "AppSettingsEntity{id=%d, hasKey=%s, hasTavilyKey=%s, selectedModelIdsJson=%s, presidentModelId=%s, updatedAt=%s}"
+                .formatted(id, openRouterKeyEncrypted != null, tavilyKeyEncrypted != null, selectedModelIdsJson, presidentModelId, updatedAt);
     }
 }

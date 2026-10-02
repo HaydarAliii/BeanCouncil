@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { askCouncil, getSettings } from './api';
-import type { CouncilResult } from './api';
+import type { CouncilResult, SettingsResponse } from './api';
 import { PromptForm } from './components/PromptForm';
 import { FinalAnswer } from './components/FinalAnswer';
 import { ProcessDetails } from './components/ProcessDetails';
@@ -12,6 +12,7 @@ type View = 'council' | 'settings' | 'history';
 function App() {
   const [view, setView] = useState<View>('council');
   const [configured, setConfigured] = useState<boolean | null>(null);
+  const [webSearchAvailable, setWebSearchAvailable] = useState(false);
   const [loading, setLoading] = useState(false);
   const [threadId, setThreadId] = useState<number | null>(null);
   const [turns, setTurns] = useState<CouncilResult[]>([]);
@@ -22,16 +23,17 @@ function App() {
       .then((settings) => {
         const ready = settings.hasKey && settings.selectedModelIds.length >= 2 && !!settings.presidentModelId;
         setConfigured(ready);
+        setWebSearchAvailable(settings.hasTavilyKey);
         if (!ready) setView('settings');
       })
       .catch(() => setConfigured(false));
   }, []);
 
-  async function handleSubmit(prompt: string) {
+  async function handleSubmit(prompt: string, webSearch: boolean) {
     setLoading(true);
     setError(null);
     try {
-      const councilResult = await askCouncil(prompt, threadId);
+      const councilResult = await askCouncil(prompt, threadId, webSearch);
       setTurns((prev) => [...prev, councilResult]);
       setThreadId(councilResult.threadId);
     } catch (err) {
@@ -47,8 +49,9 @@ function App() {
     setError(null);
   }
 
-  function handleSettingsSaved() {
+  function handleSettingsSaved(settings: SettingsResponse) {
     setConfigured(true);
+    setWebSearchAvailable(settings.hasTavilyKey);
     setView('council');
   }
 
@@ -103,6 +106,7 @@ function App() {
             loading={loading}
             onSubmit={handleSubmit}
             placeholder={turns.length > 0 ? 'Takip sorunu yaz...' : undefined}
+            webSearchAvailable={webSearchAvailable}
           />
 
           {error && <p className="error-text">{error}</p>}

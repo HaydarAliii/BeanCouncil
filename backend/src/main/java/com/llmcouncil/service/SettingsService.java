@@ -60,7 +60,8 @@ public class SettingsService {
             throw new SettingsNotConfiguredException("Konsey başkanı seçili modeller arasından seçilmeli.");
         }
 
-        return new AppSettings(key, modelIds, presidentId);
+        String tavilyKey = cipher.decrypt(entity.getTavilyKeyEncrypted());
+        return new AppSettings(key, modelIds, presidentId, tavilyKey);
     }
 
     /** Sadece key'in var olup olmadığını kontrol etmek için (ör. /api/models/key çağrısından önce). */
@@ -82,7 +83,10 @@ public class SettingsService {
         if (request.openRouterKey() != null && !request.openRouterKey().isBlank()) {
             entity.setOpenRouterKeyEncrypted(cipher.encrypt(request.openRouterKey()));
         }
-        // openRouterKey boş/null gönderildiyse mevcut şifreli key korunur (write-only alan).
+        if (request.tavilyKey() != null && !request.tavilyKey().isBlank()) {
+            entity.setTavilyKeyEncrypted(cipher.encrypt(request.tavilyKey()));
+        }
+        // İkisi de boş/null gönderildiyse mevcut şifreli key'ler korunur (write-only alanlar).
 
         entity.setSelectedModelIdsJson(objectMapper.writeValueAsString(request.selectedModelIds()));
         entity.setPresidentModelId(request.presidentModelId());
@@ -100,16 +104,24 @@ public class SettingsService {
 
     private SettingsResponse toResponse(AppSettingsEntity entity) {
         if (entity == null) {
-            return new SettingsResponse(false, null, List.of(), null);
+            return new SettingsResponse(false, null, false, null, List.of(), null);
         }
         boolean hasKey = entity.getOpenRouterKeyEncrypted() != null;
-        String preview = null;
-        if (hasKey) {
-            String decrypted = cipher.decrypt(entity.getOpenRouterKeyEncrypted());
-            preview = decrypted != null && decrypted.length() >= 4
-                    ? "••••" + decrypted.substring(decrypted.length() - 4)
-                    : "••••";
+        boolean hasTavilyKey = entity.getTavilyKeyEncrypted() != null;
+        return new SettingsResponse(
+                hasKey, maskKey(entity.getOpenRouterKeyEncrypted()),
+                hasTavilyKey, maskKey(entity.getTavilyKeyEncrypted()),
+                parseModelIds(entity.getSelectedModelIdsJson()), entity.getPresidentModelId());
+    }
+
+    /** @return son 4 hane maskelenmiş önizleme, ya da key yoksa {@code null}. */
+    private String maskKey(String encrypted) {
+        if (encrypted == null) {
+            return null;
         }
-        return new SettingsResponse(hasKey, preview, parseModelIds(entity.getSelectedModelIdsJson()), entity.getPresidentModelId());
+        String decrypted = cipher.decrypt(encrypted);
+        return decrypted != null && decrypted.length() >= 4
+                ? "••••" + decrypted.substring(decrypted.length() - 4)
+                : "••••";
     }
 }

@@ -26,6 +26,21 @@ export function ProcessDetails({ result }: ProcessDetailsProps) {
     <details className="process-details">
       <summary>Süreci göster</summary>
 
+      {result.webSearchResults.length > 0 && (
+        <>
+          <h3>🔍 Web Araştırması Sonuçları</h3>
+          <div className="search-result-list">
+            {result.webSearchResults.map((r) => (
+              <a key={r.url} className="search-result-card" href={r.url} target="_blank" rel="noreferrer">
+                <span className="search-result-title">{r.title}</span>
+                <span className="search-result-url">{r.url}</span>
+                <span className="search-result-snippet">{r.content}</span>
+              </a>
+            ))}
+          </div>
+        </>
+      )}
+
       <h3>İlk Görüşler</h3>
       <div className="opinion-grid">
         {result.firstOpinions.map((opinion) => (

@@ -20,6 +20,8 @@ llm:
   providers:
     openrouter:
       base-url: https://openrouter.ai/api/v1
+    tavily:
+      base-url: https://api.tavily.com
 
 app:
   crypto:

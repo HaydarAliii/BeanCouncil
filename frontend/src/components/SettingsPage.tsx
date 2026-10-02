@@ -9,10 +9,11 @@ import {
   type SettingsResponse,
 } from '../api';
 import { SettingsPanel } from './SettingsPanel';
+import { WebSearchPanel } from './WebSearchPanel';
 import { ModelPicker } from './ModelPicker';
 
 type SettingsPageProps = {
-  onSaved: () => void;
+  onSaved: (settings: SettingsResponse) => void;
 };
 
 export function SettingsPage({ onSaved }: SettingsPageProps) {
@@ -24,6 +25,7 @@ export function SettingsPage({ onSaved }: SettingsPageProps) {
   const [keyStatus, setKeyStatus] = useState<KeyStatus | null>(null);
 
   const [keyInput, setKeyInput] = useState('');
+  const [tavilyKeyInput, setTavilyKeyInput] = useState('');
   const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
   const [presidentModelId, setPresidentModelId] = useState<string | null>(null);
 
@@ -85,18 +87,20 @@ export function SettingsPage({ onSaved }: SettingsPageProps) {
     try {
       const response = await saveSettings({
         openRouterKey: keyInput.trim() || undefined,
+        tavilyKey: tavilyKeyInput.trim() || undefined,
         selectedModelIds,
         presidentModelId,
       });
       setSettings(response);
       setKeyInput('');
+      setTavilyKeyInput('');
       setSaveSuccess(true);
       try {
         setKeyStatus(await getKeyStatus());
       } catch {
         setKeyStatus(null);
       }
-      onSaved();
+      onSaved(response);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Ayarlar kaydedilemedi.');
     } finally {
@@ -114,6 +118,13 @@ export function SettingsPage({ onSaved }: SettingsPageProps) {
         keyPreview={settings?.keyPreview ?? null}
         value={keyInput}
         onChange={setKeyInput}
+      />
+
+      <WebSearchPanel
+        hasKey={settings?.hasTavilyKey ?? false}
+        keyPreview={settings?.tavilyKeyPreview ?? null}
+        value={tavilyKeyInput}
+        onChange={setTavilyKeyInput}
       />
 
       <ModelPicker

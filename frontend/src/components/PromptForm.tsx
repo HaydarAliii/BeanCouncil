@@ -3,12 +3,14 @@ import type { FormEvent } from 'react';
 
 type PromptFormProps = {
   loading: boolean;
-  onSubmit: (prompt: string) => void;
+  onSubmit: (prompt: string, webSearch: boolean) => void;
   placeholder?: string;
+  webSearchAvailable?: boolean;
 };
 
-export function PromptForm({ loading, onSubmit, placeholder }: PromptFormProps) {
+export function PromptForm({ loading, onSubmit, placeholder, webSearchAvailable }: PromptFormProps) {
   const [prompt, setPrompt] = useState('');
+  const [webSearch, setWebSearch] = useState(false);
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -16,7 +18,7 @@ export function PromptForm({ loading, onSubmit, placeholder }: PromptFormProps) 
     if (!trimmed || loading) {
       return;
     }
-    onSubmit(trimmed);
+    onSubmit(trimmed, webSearch);
     setPrompt('');
   }
 
@@ -29,9 +31,22 @@ export function PromptForm({ loading, onSubmit, placeholder }: PromptFormProps) 
         rows={4}
         disabled={loading}
       />
-      <button type="submit" disabled={loading || !prompt.trim()}>
-        {loading ? 'Konsey görüşüyor…' : 'Konseye Sor'}
-      </button>
+      <div className="prompt-form-actions">
+        <button type="submit" disabled={loading || !prompt.trim()}>
+          {loading ? 'Konsey görüşüyor…' : 'Konseye Sor'}
+        </button>
+        {webSearchAvailable && (
+          <label className="web-search-toggle">
+            <input
+              type="checkbox"
+              checked={webSearch}
+              onChange={(e) => setWebSearch(e.target.checked)}
+              disabled={loading}
+            />
+            🔍 Web'de ara
+          </label>
+        )}
+      </div>
     </form>
   );
 }

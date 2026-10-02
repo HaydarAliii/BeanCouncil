@@ -8,5 +8,13 @@ public record CouncilResult(
         List<LlmResponse> reviews,
         String presidentProvider,
         String finalAnswer,
-        Long threadId) {
+        Long threadId,
+        List<WebSearchResult> webSearchResults) {
+
+    /** webSearchResults alanı eski (bu özellikten önceki) transcript JSON'larında hiç yok — eksikse boş listeye normalize eder. */
+    public CouncilResult {
+        if (webSearchResults == null) {
+            webSearchResults = List.of();
+        }
+    }
 }

@@ -23,6 +23,10 @@ Konsey üyeleri ve başkan **kullanıcı tarafından çalışma zamanında seçi
 - Kullanıcı istediği modelleri seçip aralarından birini başkan yapar. Üye kimliği doğrudan OpenRouter model id'sidir (ör. `anthropic/claude-sonnet-5`).
 - Hem key hem de model seçimi girilene kadar konsey çalışmaz; backend bu durumda `428 Precondition Required` + açık bir hata mesajı döner (sessizce `500` vermez).
 
+**Web araştırması (opsiyonel)**: kullanıcı Ayarlar'dan ücretsiz bir [Tavily](https://app.tavily.com/home) key'i de girebilir (yine AES-256-GCM şifreli, write-only). Key kayıtlıysa konsey ekranında "🔍 Web'de ara" seçeneği belirir — işaretlenirse, soru üyelere gönderilmeden önce Tavily'den gelen güncel arama sonuçları bağlam olarak eklenir. Tamamen opsiyoneldir: key yoksa seçenek hiç görünmez; arama API'si hata verirse (geçersiz key, rate limit, ağ sorunu) sessizce atlanır ve konsey normal şekilde cevap üretmeye devam eder — arama hiçbir zaman akışı kesmez.
+
+Konsey üyeleri ve başkan gibi, konuşmalar da **çok turlu (thread)**: aynı thread'e yeni bir soru sorulduğunda üyeler önceki tur(lar)ı bağlam olarak görür; Geçmiş sekmesinden eski bir konuşma açılıp "Bu konuşmaya devam et" ile kaldığı yerden sürdürülebilir.
+
 ## Proje Yapısı
 
 ```
@@ -39,16 +43,17 @@ llmKonsey/
 │       │                ConversationNotFoundException, GlobalExceptionHandler
 │       ├── model/       dto (record) ve JPA entity'leri (AppSettingsEntity, ConversationThreadEntity dahil)
 │       ├── repository/  Spring Data JPA repository'leri
-│       ├── service/     CouncilService (3 aşama + thread/follow-up bağlamı), CouncilMemberFactory
-│       │                (dinamik üye kurulumu), SettingsService, OpenRouterCatalogService,
-│       │                ConversationHistoryService, LegacyConversationMigration (eski kayıtları
-│       │                thread'lere taşıyan tek seferlik başlangıç migration'ı)
+│       ├── service/     CouncilService (3 aşama + thread/follow-up + web araması bağlamı),
+│       │                CouncilMemberFactory (dinamik üye kurulumu), SettingsService,
+│       │                OpenRouterCatalogService, WebSearchService (Tavily), ConversationHistoryService,
+│       │                LegacyConversationMigration (eski kayıtları thread'lere taşıyan tek seferlik
+│       │                başlangıç migration'ı)
 │       └── util/        SecretCipher (AES-256-GCM key şifreleme)
 └── frontend/             React + Vite + TypeScript arayüzü
     └── src/
         ├── api.ts        Backend ile tip-güvenli iletişim
         └── components/   PromptForm, FinalAnswer, ProcessDetails, SettingsPage, SettingsPanel,
-                           ModelPicker, HistoryPage
+                           WebSearchPanel, ModelPicker, HistoryPage
 ```
 
 ## Teknoloji Yığını
@@ -110,4 +115,5 @@ curl -X POST http://localhost:8080/api/council/ask \
 - ✅ Çalışıyor: React frontend — Konsey/Ayarlar/Geçmiş sekmeleri, soru sor, final cevabı gör, "Süreci göster" ile ara aşamaları incele
 - ✅ Çalışıyor: konuşma geçmişi — thread'ler listelenir, herhangi birine tıklayınca içindeki tüm turlar (ilk görüşler, review'lar, final cevap) sırayla tekrar görüntülenir; eski mimari dönemlerden (g4f, sabit kimlikler) kalan kayıtlar da uygulama ilk açıldığında otomatik olarak kendi thread'lerine taşınıp geriye dönük uyumlu şekilde açılır
 - ✅ Çalışıyor: çok turlu (follow-up) konuşmalar — aynı thread'e yeni bir soru sorulduğunda konsey üyeleri önceki tur(lar)ı bağlam olarak görür; geçmişten de bir konuşmaya "devam et" ile kaldığı yerden sürdürülebilir
+- ✅ Çalışıyor: opsiyonel web araştırması (Tavily) — "Web'de ara" işaretlenince üyeler güncel arama sonuçlarını bağlam olarak görür; key yoksa veya arama başarısız olursa konsey sessizce aramasız devam eder, hiçbir zaman çökmez
 - ❌ Henüz yok: testler, prod deploy/CORS ayarları, Ollama desteği

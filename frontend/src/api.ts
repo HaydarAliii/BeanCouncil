@@ -5,6 +5,12 @@ export type LlmResponse = {
   errorMessage: string | null;
 };
 
+export type WebSearchResult = {
+  title: string;
+  url: string;
+  content: string;
+};
+
 export type CouncilResult = {
   prompt: string;
   firstOpinions: LlmResponse[];
@@ -12,17 +18,21 @@ export type CouncilResult = {
   presidentProvider: string;
   finalAnswer: string;
   threadId: number;
+  webSearchResults: WebSearchResult[];
 };
 
 export type SettingsResponse = {
   hasKey: boolean;
   keyPreview: string | null;
+  hasTavilyKey: boolean;
+  tavilyKeyPreview: string | null;
   selectedModelIds: string[];
   presidentModelId: string | null;
 };
 
 export type SettingsRequest = {
   openRouterKey?: string;
+  tavilyKey?: string;
   selectedModelIds: string[];
   presidentModelId: string;
 };
@@ -69,11 +79,15 @@ async function handle<T>(response: Response, fallbackMessage: string): Promise<T
   return response.json();
 }
 
-export async function askCouncil(prompt: string, threadId: number | null = null): Promise<CouncilResult> {
+export async function askCouncil(
+  prompt: string,
+  threadId: number | null = null,
+  webSearch = false,
+): Promise<CouncilResult> {
   const response = await fetch('/api/council/ask', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, threadId }),
+    body: JSON.stringify({ prompt, threadId, webSearch }),
   });
   return handle(response, 'Konsey isteği başarısız oldu');
 }

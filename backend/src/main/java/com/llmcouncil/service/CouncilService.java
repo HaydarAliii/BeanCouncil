@@ -2,8 +2,10 @@ package com.llmcouncil.service;
 
 import com.llmcouncil.adapter.LlmProviderAdapter;
 import com.llmcouncil.exception.ConversationNotFoundException;
+import com.llmcouncil.model.dto.AppSettings;
 import com.llmcouncil.model.dto.CouncilResult;
 import com.llmcouncil.model.dto.LlmResponse;
+import com.llmcouncil.model.dto.WebSearchResult;
 import com.llmcouncil.model.entity.ConversationEntity;
 import com.llmcouncil.model.entity.ConversationThreadEntity;
 import com.llmcouncil.repository.ConversationRepository;
@@ -33,30 +35,44 @@ public class CouncilService {
 
     private final CouncilMemberFactory memberFactory;
     private final SettingsService settingsService;
+    private final WebSearchService webSearchService;
     private final ConversationRepository repository;
     private final ConversationThreadRepository threadRepository;
     private final ObjectMapper objectMapper;
 
     public CouncilService(CouncilMemberFactory memberFactory,
                            SettingsService settingsService,
+                           WebSearchService webSearchService,
                            ConversationRepository repository,
                            ConversationThreadRepository threadRepository,
                            ObjectMapper objectMapper) {
         this.memberFactory = memberFactory;
         this.settingsService = settingsService;
+        this.webSearchService = webSearchService;
         this.repository = repository;
         this.threadRepository = threadRepository;
         this.objectMapper = objectMapper;
     }
 
-    /** {@code threadId} null ise yeni bir konuşma başlatılır; doluysa o thread'e follow-up olarak eklenir. */
-    public CouncilResult deliberate(String prompt, Long threadId) {
+    /**
+     * {@code threadId} null ise yeni bir konuşma başlatılır; doluysa o thread'e follow-up olarak
+     * eklenir. {@code webSearch} true ve Tavily key kayıtlıysa, üyeler soruyu yanıtlamadan önce
+     * güncel web sonuçlarını bağlam olarak görür (arama başarısız olursa sessizce atlanır).
+     */
+    public CouncilResult deliberate(String prompt, Long threadId, boolean webSearch) {
         long resolvedThreadId = resolveThread(threadId, prompt);
         List<ConversationEntity> history = repository.findByThreadIdOrderByCreatedAtAsc(resolvedThreadId);
-        String effectivePrompt = buildContextualPrompt(history, prompt);
+
+        AppSettings settings = settingsService.getDecryptedSettingsOrThrow();
+        String presidentId = settings.presidentModelId();
+
+        List<WebSearchResult> searchResults = (webSearch && settings.hasTavilyKey())
+                ? webSearchService.search(prompt, settings.tavilyKey())
+                : List.of();
+
+        String effectivePrompt = buildContextualPrompt(history, searchResults, prompt);
 
         List<LlmProviderAdapter> allMembers = memberFactory.buildAllMembers();
-        String presidentId = settingsService.getDecryptedSettingsOrThrow().presidentModelId();
 
         LlmProviderAdapter president = allMembers.stream()
                 .filter(member -> member.getProviderName().equals(presidentId))
@@ -84,7 +100,8 @@ public class CouncilService {
             finalAnswer = "The council could not produce an answer because all members failed.";
         }
 
-        CouncilResult result = new CouncilResult(prompt, firstOpinions, reviews, actualPresident, finalAnswer, resolvedThreadId);
+        CouncilResult result = new CouncilResult(prompt, firstOpinions, reviews, actualPresident, finalAnswer,
+                resolvedThreadId, searchResults);
         persist(result, resolvedThreadId);
         return result;
     }
@@ -101,22 +118,37 @@ public class CouncilService {
         return threadRepository.save(new ConversationThreadEntity(firstPrompt)).getId();
     }
 
-    /** Önceki turları (varsa) bağlam olarak başa ekler; thread yeni/tekse soruyu olduğu gibi döner. */
-    private String buildContextualPrompt(List<ConversationEntity> history, String latestPrompt) {
-        if (history.isEmpty()) {
+    /**
+     * Önceki turları ve/veya web araması sonuçlarını (varsa) bağlam olarak başa ekler; ikisi de
+     * yoksa soruyu olduğu gibi döner.
+     */
+    private String buildContextualPrompt(List<ConversationEntity> history, List<WebSearchResult> searchResults,
+                                          String latestPrompt) {
+        StringBuilder context = new StringBuilder();
+
+        if (!history.isEmpty()) {
+            String historyBlock = history.stream()
+                    .map(turn -> "Kullanıcı: " + turn.getPrompt() + "\nKonsey: " + turn.getFinalAnswer())
+                    .collect(Collectors.joining("\n\n"));
+            context.append("Bu, devam eden bir konuşmanın parçası. Önceki tur(lar):\n\n")
+                    .append(historyBlock)
+                    .append("\n\n");
+        }
+
+        if (!searchResults.isEmpty()) {
+            String searchBlock = searchResults.stream()
+                    .map(r -> "- %s (%s)\n  %s".formatted(r.title(), r.url(), r.content()))
+                    .collect(Collectors.joining("\n\n"));
+            context.append("Güncel web araması sonuçları (soruyu yanıtlarken gerekirse kullan, kaynak göstermene gerek yok):\n\n")
+                    .append(searchBlock)
+                    .append("\n\n");
+        }
+
+        if (context.isEmpty()) {
             return latestPrompt;
         }
-        String historyBlock = history.stream()
-                .map(turn -> "Kullanıcı: " + turn.getPrompt() + "\nKonsey: " + turn.getFinalAnswer())
-                .collect(Collectors.joining("\n\n"));
-
-        return """
-                Bu, devam eden bir konuşmanın parçası. Önceki tur(lar):
-
-                %s
-
-                Kullanıcının yeni sorusu: %s
-                """.formatted(historyBlock, latestPrompt);
+        context.append(history.isEmpty() ? "Soru: " : "Kullanıcının yeni sorusu: ").append(latestPrompt);
+        return context.toString();
     }
 
     private List<LlmResponse> collectFirstOpinions(List<LlmProviderAdapter> councilors, String prompt) {
