@@ -1,5 +1,7 @@
 # BeanCouncil
 
+[![CI](https://github.com/HaydarAliii/BeanCouncil/actions/workflows/ci.yml/badge.svg)](https://github.com/HaydarAliii/BeanCouncil/actions/workflows/ci.yml)
+
 `spring-boot` · `java` · `react` · `typescript` · `openrouter` · `llm` · `multi-agent` · `postgresql` · `vite` · `docker`
 
 Andrej Karpathy'nin [llm-council](https://github.com/karpathy/llm-council) ve jacob-bd'nin [the-ai-counsel](https://github.com/jacob-bd/the-ai-counsel) projelerinden ilham alan, Java/Spring Boot + React tabanlı çoklu ajan (multi-agent) yapay zeka konsey uygulaması. Orijinal Python/FastAPI mimarisi yerine Spring Boot kullanılıyor. the-ai-counsel'daki gibi **tamamen resmi API'ler** üzerinden çalışır — hiçbir reverse-engineering/key'siz "ücretsiz" servis kullanılmaz. Tek key kaynağı [OpenRouter](https://openrouter.ai): tek bir OpenRouter API key'i ile 400'den fazla modele (OpenAI, Anthropic, Google, xAI ve daha fazlası) resmi şekilde erişilir.
@@ -120,7 +122,9 @@ cd backend
 mvn test
 ```
 
-51 test, tamamı ~1 saniyede, **Docker/Postgres/`.env` olmadan** yeşil döner — hiçbiri Spring context başlatmıyor; en kritik mantık (`CouncilService`: başkan tarafsızlığı, follow-up bağlamı, web arama entegrasyonu, hata durumlarında zarif bozulma) saf Mockito ile, dış HTTP yapan 3 sınıf (`OpenAiCompatibleAdapter`, `OpenRouterCatalogService`, `WebSearchService`) MockWebServer ile gerçek ağa çıkmadan test ediliyor. JPA/repository entegrasyon testleri (Testcontainers) ve CI henüz kapsam dışı.
+51 test, tamamı ~1 saniyede, **Docker/Postgres/`.env` olmadan** yeşil döner — hiçbiri Spring context başlatmıyor; en kritik mantık (`CouncilService`: başkan tarafsızlığı, follow-up bağlamı, web arama entegrasyonu, hata durumlarında zarif bozulma) saf Mockito ile, dış HTTP yapan 3 sınıf (`OpenAiCompatibleAdapter`, `OpenRouterCatalogService`, `WebSearchService`) MockWebServer ile gerçek ağa çıkmadan test ediliyor. JPA/repository entegrasyon testleri (Testcontainers) henüz kapsam dışı.
+
+`.github/workflows/ci.yml`, her push/PR'da `main`'e iki job çalıştırır: backend (`mvn test`) ve frontend (`npm run lint` + `npm run build`, tip kontrolü dahil) — ikisi de ek servis gerektirmez.
 
 ## Deploy (Docker Compose ile kendi sunucunda/VPS'inde)
 
@@ -152,4 +156,5 @@ Tam yerel doğrulama yapıldı: `docker compose ... build` her iki imajı da ba�
 - ✅ Çalışıyor: opsiyonel web araştırması (Tavily) — "Web'de ara" işaretlenince üyeler güncel arama sonuçlarını bağlam olarak görür; key yoksa veya arama başarısız olursa konsey sessizce aramasız devam eder, hiçbir zaman çökmez
 - ✅ Çalışıyor: production deploy — `docker-compose.prod.yml` ile tek komutla Postgres+backend+frontend; backend/Postgres dışa kapalı, frontend Basic Auth arkasında, CORS'a gerek yok (aynı origin proxy)
 - ✅ Çalışıyor: backend test suite — 51 test (`CouncilService`, `SettingsService`, `SecretCipher`, `LegacyConversationMigration`, `ConversationHistoryService` saf Mockito; `OpenAiCompatibleAdapter`/`OpenRouterCatalogService`/`WebSearchService` MockWebServer ile HTTP sözleşme testi), Docker'sız `mvn test` ile ~1sn'de yeşil
-- ❌ Henüz yok: Testcontainers ile JPA/entegrasyon testleri, CI (GitHub Actions), frontend testleri, Ollama desteği, otomatik HTTPS (TLS bilinçli olarak kapsam dışı — kullanıcı kendi ters proxy'sini koyar)
+- ✅ Çalışıyor: CI (GitHub Actions) — her push/PR'da backend testleri + frontend lint/build otomatik çalışıyor
+- ❌ Henüz yok: Testcontainers ile JPA/entegrasyon testleri, frontend testleri (vitest/testing-library), Ollama desteği, otomatik HTTPS (TLS bilinçli olarak kapsam dışı — kullanıcı kendi ters proxy'sini koyar)
