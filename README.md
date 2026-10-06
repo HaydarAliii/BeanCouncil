@@ -52,6 +52,7 @@ llmKonsey/
 │       │                LegacyConversationMigration (eski kayıtları thread'lere taşıyan tek seferlik
 │       │                başlangıç migration'ı)
 │       └── util/        SecretCipher (AES-256-GCM key şifreleme)
+│   └── src/test/java/com/llmcouncil/   51 test — src/main ile aynı paket yapısı (bkz. "Testler")
 └── frontend/             React + Vite + TypeScript arayüzü
     ├── Dockerfile           (build + nginx ile statik sunum/proxy)
     ├── nginx.conf           (Basic Auth + /api proxy)
@@ -112,6 +113,15 @@ curl -X POST http://localhost:8080/api/council/ask \
 
 **Not**: OpenRouter'ın `:free` etiketli modelleri (400+ model içinden ~20 tanesi) tamamen ücretsizdir ama paylaşımlı havuzları zaman zaman rate-limit'e takılabilir. Büyük/isimli modeller (gpt, claude, gemini, grok ailesi) OpenRouter'da hep ücretlidir — bunları kullanmak için hesabına kredi yüklemen gerekir.
 
+### Testler
+
+```bash
+cd backend
+mvn test
+```
+
+51 test, tamamı ~1 saniyede, **Docker/Postgres/`.env` olmadan** yeşil döner — hiçbiri Spring context başlatmıyor; en kritik mantık (`CouncilService`: başkan tarafsızlığı, follow-up bağlamı, web arama entegrasyonu, hata durumlarında zarif bozulma) saf Mockito ile, dış HTTP yapan 3 sınıf (`OpenAiCompatibleAdapter`, `OpenRouterCatalogService`, `WebSearchService`) MockWebServer ile gerçek ağa çıkmadan test ediliyor. JPA/repository entegrasyon testleri (Testcontainers) ve CI henüz kapsam dışı.
+
 ## Deploy (Docker Compose ile kendi sunucunda/VPS'inde)
 
 Kökteki `docker-compose.prod.yml`, uygulamanın tamamını (Postgres + backend + frontend) tek komutla ayağa kaldırır. Backend ve Postgres'in portları **dışarıya hiç açılmaz** — internete sadece frontend'in nginx'i, o da **Basic Auth şifre koruması** arkasında açılır (sunucu internete açık olacağı için, başkasının senin OpenRouter/Tavily kredini kullanmasını engellemek amacıyla). `/api` istekleri nginx tarafından aynı origin üzerinden backend'e proxy'lenir — ayrı bir host olmadığı için CORS hiç gerekmez.
@@ -141,4 +151,5 @@ Tam yerel doğrulama yapıldı: `docker compose ... build` her iki imajı da ba�
 - ✅ Çalışıyor: çok turlu (follow-up) konuşmalar — aynı thread'e yeni bir soru sorulduğunda konsey üyeleri önceki tur(lar)ı bağlam olarak görür; geçmişten de bir konuşmaya "devam et" ile kaldığı yerden sürdürülebilir
 - ✅ Çalışıyor: opsiyonel web araştırması (Tavily) — "Web'de ara" işaretlenince üyeler güncel arama sonuçlarını bağlam olarak görür; key yoksa veya arama başarısız olursa konsey sessizce aramasız devam eder, hiçbir zaman çökmez
 - ✅ Çalışıyor: production deploy — `docker-compose.prod.yml` ile tek komutla Postgres+backend+frontend; backend/Postgres dışa kapalı, frontend Basic Auth arkasında, CORS'a gerek yok (aynı origin proxy)
-- ❌ Henüz yok: testler, Ollama desteği, otomatik HTTPS (TLS bilinçli olarak kapsam dışı — kullanıcı kendi ters proxy'sini koyar)
+- ✅ Çalışıyor: backend test suite — 51 test (`CouncilService`, `SettingsService`, `SecretCipher`, `LegacyConversationMigration`, `ConversationHistoryService` saf Mockito; `OpenAiCompatibleAdapter`/`OpenRouterCatalogService`/`WebSearchService` MockWebServer ile HTTP sözleşme testi), Docker'sız `mvn test` ile ~1sn'de yeşil
+- ❌ Henüz yok: Testcontainers ile JPA/entegrasyon testleri, CI (GitHub Actions), frontend testleri, Ollama desteği, otomatik HTTPS (TLS bilinçli olarak kapsam dışı — kullanıcı kendi ters proxy'sini koyar)
