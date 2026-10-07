@@ -40,5 +40,7 @@ jobs:
 
       - run: npm ci
       - run: npm run lint
+      # jsdom üzerinde koşar, Docker/tarayıcı ikili dosyası gerektirmez (Round 1).
+      - run: npm test
       # build, tsc -b (tip kontrolü) + vite build'i birlikte çalıştırır.
       - run: npm run build

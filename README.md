@@ -124,7 +124,14 @@ mvn test
 
 51 test, tamamı ~1 saniyede, **Docker/Postgres/`.env` olmadan** yeşil döner — hiçbiri Spring context başlatmıyor; en kritik mantık (`CouncilService`: başkan tarafsızlığı, follow-up bağlamı, web arama entegrasyonu, hata durumlarında zarif bozulma) saf Mockito ile, dış HTTP yapan 3 sınıf (`OpenAiCompatibleAdapter`, `OpenRouterCatalogService`, `WebSearchService`) MockWebServer ile gerçek ağa çıkmadan test ediliyor. JPA/repository entegrasyon testleri (Testcontainers) henüz kapsam dışı.
 
-`.github/workflows/ci.yml`, her push/PR'da `main`'e iki job çalıştırır: backend (`mvn test`) ve frontend (`npm run lint` + `npm run build`, tip kontrolü dahil) — ikisi de ek servis gerektirmez.
+```bash
+cd frontend
+npm test
+```
+
+53 test (vitest + React Testing Library, jsdom üzerinde, tarayıcı/network gerektirmeden ~2 saniyede yeşil döner): `api.ts`'teki hata-parse sözleşmesi, `SettingsPage`/`App`'in state makinesi (view routing, save sonrası key input'larının boşaltılması, thread sürekliliği), ve bu projede gerçekten yaşanmış bir regresyonun koruması — `webSearchResults` boşken "Süreci göster" altındaki web araması bölümünün hiç render olmaması. Component testleri `../api` modülünü bir sınır olarak mock'lar; sadece `api.test.ts` gerçek `fetch` çağrısını stub'lar.
+
+`.github/workflows/ci.yml`, her push/PR'da `main`'e iki job çalıştırır: backend (`mvn test`) ve frontend (`npm run lint` + `npm test` + `npm run build`, tip kontrolü dahil) — ikisi de ek servis gerektirmez.
 
 ## Deploy (Docker Compose ile kendi sunucunda/VPS'inde)
 
@@ -156,5 +163,6 @@ Tam yerel doğrulama yapıldı: `docker compose ... build` her iki imajı da ba�
 - ✅ Çalışıyor: opsiyonel web araştırması (Tavily) — "Web'de ara" işaretlenince üyeler güncel arama sonuçlarını bağlam olarak görür; key yoksa veya arama başarısız olursa konsey sessizce aramasız devam eder, hiçbir zaman çökmez
 - ✅ Çalışıyor: production deploy — `docker-compose.prod.yml` ile tek komutla Postgres+backend+frontend; backend/Postgres dışa kapalı, frontend Basic Auth arkasında, CORS'a gerek yok (aynı origin proxy)
 - ✅ Çalışıyor: backend test suite — 51 test (`CouncilService`, `SettingsService`, `SecretCipher`, `LegacyConversationMigration`, `ConversationHistoryService` saf Mockito; `OpenAiCompatibleAdapter`/`OpenRouterCatalogService`/`WebSearchService` MockWebServer ile HTTP sözleşme testi), Docker'sız `mvn test` ile ~1sn'de yeşil
-- ✅ Çalışıyor: CI (GitHub Actions) — her push/PR'da backend testleri + frontend lint/build otomatik çalışıyor
-- ❌ Henüz yok: Testcontainers ile JPA/entegrasyon testleri, frontend testleri (vitest/testing-library), Ollama desteği, otomatik HTTPS (TLS bilinçli olarak kapsam dışı — kullanıcı kendi ters proxy'sini koyar)
+- ✅ Çalışıyor: frontend test suite — 53 test (vitest/testing-library), `../api` sınırında mock'lanmış component/state testleri, Docker'sız `npm test` ile ~2sn'de yeşil
+- ✅ Çalışıyor: CI (GitHub Actions) — her push/PR'da backend testleri + frontend lint/test/build otomatik çalışıyor
+- ❌ Henüz yok: Testcontainers ile JPA/entegrasyon testleri, Ollama desteği, otomatik HTTPS (TLS bilinçli olarak kapsam dışı — kullanıcı kendi ters proxy'sini koyar)
