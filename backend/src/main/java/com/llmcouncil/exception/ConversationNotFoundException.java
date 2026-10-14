@@ -1,6 +1,6 @@
 package com.llmcouncil.exception;
 
-/** İstenen id'de bir konuşma kaydı bulunamadığında fırlatılır. */
+/** Thrown when no conversation record exists for the requested id. */
 public class ConversationNotFoundException extends RuntimeException {
 
     public ConversationNotFoundException(String message) {

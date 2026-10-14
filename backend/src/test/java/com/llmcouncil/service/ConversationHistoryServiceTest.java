@@ -55,39 +55,39 @@ class ConversationHistoryServiceTest {
     @Test
     void listThreads_mapsTurnCountFromRepository() {
         when(threadRepository.findAllByOrderByUpdatedAtDesc())
-                .thenReturn(List.of(thread(1L, "soru A"), thread(2L, "soru B")));
+                .thenReturn(List.of(thread(1L, "question A"), thread(2L, "question B")));
         when(conversationRepository.countByThreadId(1L)).thenReturn(3L);
         when(conversationRepository.countByThreadId(2L)).thenReturn(1L);
 
         List<ConversationSummary> summaries = service.listThreads();
 
         assertThat(summaries).hasSize(2);
-        assertThat(summaries.get(0).title()).isEqualTo("soru A");
+        assertThat(summaries.get(0).title()).isEqualTo("question A");
         assertThat(summaries.get(0).turnCount()).isEqualTo(3L);
         assertThat(summaries.get(1).turnCount()).isEqualTo(1L);
     }
 
     @Test
     void getThreadTurns_deserializesTranscriptsInOrder() {
-        CouncilResult first = new CouncilResult("soru 1", List.of(), List.of(), "pres", "cevap 1", 7L, List.of());
-        CouncilResult second = new CouncilResult("soru 2", List.of(), List.of(), "pres", "cevap 2", 7L, List.of());
+        CouncilResult first = new CouncilResult("question 1", List.of(), List.of(), "pres", "answer 1", 7L, List.of());
+        CouncilResult second = new CouncilResult("question 2", List.of(), List.of(), "pres", "answer 2", 7L, List.of());
         when(conversationRepository.findByThreadIdOrderByCreatedAtAsc(7L))
                 .thenReturn(List.of(turnWithTranscript(first), turnWithTranscript(second)));
 
         List<CouncilResult> turns = service.getThreadTurns(7L);
 
         assertThat(turns).hasSize(2);
-        assertThat(turns.get(0).prompt()).isEqualTo("soru 1");
-        assertThat(turns.get(1).prompt()).isEqualTo("soru 2");
+        assertThat(turns.get(0).prompt()).isEqualTo("question 1");
+        assertThat(turns.get(1).prompt()).isEqualTo("question 2");
     }
 
     @Test
     void getThreadTurns_legacyTranscriptWithoutWebSearchResultsField_normalizesToEmptyList() {
-        // webSearchResults alanı hiç olmayan, bu özellikten önceki bir transcript JSON'ını simüle eder.
+        // Simulates a transcript JSON from before this feature, with no webSearchResults field at all.
         String legacyJson = """
-                {"prompt":"eski soru","firstOpinions":[],"reviews":[],\
-                "presidentProvider":"gpt","finalAnswer":"eski cevap","threadId":5}""";
-        ConversationEntity entity = new ConversationEntity("eski soru");
+                {"prompt":"old question","firstOpinions":[],"reviews":[],\
+                "presidentProvider":"gpt","finalAnswer":"old answer","threadId":5}""";
+        ConversationEntity entity = new ConversationEntity("old question");
         entity.setTranscript(legacyJson);
         when(conversationRepository.findByThreadIdOrderByCreatedAtAsc(5L)).thenReturn(List.of(entity));
 

@@ -15,7 +15,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    # Dışarıya port açılmıyor — sadece backend, container ağı üzerinden erişir.
+    # No port exposed externally — only the backend reaches it, over the container network.
 
   backend:
     build: ./backend
@@ -25,19 +25,19 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-llmcouncil}
       POSTGRES_USER: ${POSTGRES_USER:-llmcouncil}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-llmcouncil}
-      APP_CRYPTO_SECRET: ${APP_CRYPTO_SECRET:?APP_CRYPTO_SECRET .env.prod dosyasında tanımlı olmalı}
-      APP_CRYPTO_SALT: ${APP_CRYPTO_SALT:?APP_CRYPTO_SALT .env.prod dosyasında tanımlı olmalı}
+      APP_CRYPTO_SECRET: ${APP_CRYPTO_SECRET:?APP_CRYPTO_SECRET must be set in .env.prod}
+      APP_CRYPTO_SALT: ${APP_CRYPTO_SALT:?APP_CRYPTO_SALT must be set in .env.prod}
     depends_on:
       postgres:
         condition: service_healthy
-    # Dışarıya port açılmıyor — sadece frontend'in nginx'i, container ağı üzerinden /api'yi proxy'ler.
+    # No port exposed externally — only the frontend's nginx proxies /api, over the container network.
 
   frontend:
     build: ./frontend
     restart: unless-stopped
     environment:
-      APP_AUTH_USERNAME: ${APP_AUTH_USERNAME:?APP_AUTH_USERNAME .env.prod dosyasında tanımlı olmalı}
-      APP_AUTH_PASSWORD: ${APP_AUTH_PASSWORD:?APP_AUTH_PASSWORD .env.prod dosyasında tanımlı olmalı}
+      APP_AUTH_USERNAME: ${APP_AUTH_USERNAME:?APP_AUTH_USERNAME must be set in .env.prod}
+      APP_AUTH_PASSWORD: ${APP_AUTH_PASSWORD:?APP_AUTH_PASSWORD must be set in .env.prod}
     depends_on:
       - backend
     ports:

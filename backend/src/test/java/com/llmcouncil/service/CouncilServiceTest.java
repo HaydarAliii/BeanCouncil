@@ -36,9 +36,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * CouncilService'in en kritik iş mantığını (başkan tarafsızlığı, follow-up bağlamı, web arama
- * entegrasyonu, hata durumlarında zarif bozulma, thread çözümleme) gerçek HTTP/DB olmadan,
- * tamamen mock'lanmış bağımlılıklarla doğrular.
+ * Verifies CouncilService's most critical business logic (president impartiality, follow-up
+ * context, web search integration, graceful degradation on failures, thread resolution) with
+ * fully mocked dependencies, no real HTTP/DB involved.
  */
 @ExtendWith(MockitoExtension.class)
 class CouncilServiceTest {
@@ -64,7 +64,7 @@ class CouncilServiceTest {
                 repository, threadRepository, objectMapper);
     }
 
-    /** Yeni bir konuşma (threadId=null) senaryosu için ortak stub — id=42 olan yeni thread döner. */
+    /** Shared stub for the new-conversation (threadId=null) scenario — returns a new thread with id=42. */
     private void stubNewThread() {
         when(threadRepository.save(any(ConversationThreadEntity.class))).thenAnswer(inv -> {
             ConversationThreadEntity thread = inv.getArgument(0);
@@ -83,15 +83,15 @@ class CouncilServiceTest {
     }
 
     /**
-     * Adapter'ın gördüğü prompt'un içeriğine göre hangi aşamada (ilk görüş / review / sentez)
-     * olduğunu ayırt edip doğru stub yanıtını döner — CouncilService'in ürettiği 3 farklı prompt
-     * şablonu birbirinden ayırt edilebilir metinler içerir.
+     * Figures out which stage (first opinion / review / synthesis) a call is in based on the
+     * content of the prompt the adapter received, and returns the matching stub response — the
+     * 3 distinct prompt templates CouncilService produces each contain distinguishable text.
      */
     private LlmProviderAdapter member(String name, LlmResponse firstOpinion, LlmResponse review, LlmResponse synthesis) {
         LlmProviderAdapter adapter = mock(LlmProviderAdapter.class);
         lenient().when(adapter.getProviderName()).thenReturn(name);
-        // lenient: bazı testlerde (ör. "başkan hiç çağrılmadı") bu üyenin generateResponse'u
-        // bilinçli olarak hiç tetiklenmiyor — strict stubbing bunu false-positive olarak işaretler.
+        // lenient: in some tests (e.g. "president never called") this member's generateResponse
+        // is deliberately never triggered — strict stubbing would flag that as a false positive.
         lenient().when(adapter.generateResponse(org.mockito.ArgumentMatchers.anyString())).thenAnswer(inv -> {
             String prompt = inv.getArgument(0);
             if (prompt.contains("You are the president")) {
@@ -105,80 +105,80 @@ class CouncilServiceTest {
         return adapter;
     }
 
-    // --- (a) Başkan tarafsızlığı ---
+    // --- (a) President impartiality ---
 
     @Test
     void president_onlyParticipatesInSynthesis_neverGivesFirstOpinionOrReview() {
         stubNewThread();
-        LlmProviderAdapter a = member("A", LlmResponse.ok("A", "görüş A"), LlmResponse.ok("A", "review A"), null);
-        LlmProviderAdapter b = member("B", LlmResponse.ok("B", "görüş B"), LlmResponse.ok("B", "review B"), null);
-        LlmProviderAdapter c = member("C", null, null, LlmResponse.ok("C", "sentez"));
+        LlmProviderAdapter a = member("A", LlmResponse.ok("A", "opinion A"), LlmResponse.ok("A", "review A"), null);
+        LlmProviderAdapter b = member("B", LlmResponse.ok("B", "opinion B"), LlmResponse.ok("B", "review B"), null);
+        LlmProviderAdapter c = member("C", null, null, LlmResponse.ok("C", "synthesis"));
         when(settingsService.getDecryptedSettingsOrThrow()).thenReturn(settings("C", "A", "B", "C"));
         when(memberFactory.buildAllMembers(any())).thenReturn(List.of(a, b, c));
 
-        CouncilResult result = service.deliberate("soru", null, false);
+        CouncilResult result = service.deliberate("question", null, false);
 
-        verify(c, times(1)).generateResponse(org.mockito.ArgumentMatchers.anyString()); // sadece sentez
-        verify(a, times(2)).generateResponse(org.mockito.ArgumentMatchers.anyString()); // görüş + review
+        verify(c, times(1)).generateResponse(org.mockito.ArgumentMatchers.anyString()); // synthesis only
+        verify(a, times(2)).generateResponse(org.mockito.ArgumentMatchers.anyString()); // opinion + review
         verify(b, times(2)).generateResponse(org.mockito.ArgumentMatchers.anyString());
         assertThat(result.presidentProvider()).isEqualTo("C");
         assertThat(result.firstOpinions()).extracting(LlmResponse::providerName).containsExactlyInAnyOrder("A", "B");
         assertThat(result.reviews()).extracting(LlmResponse::providerName).containsExactlyInAnyOrder("A", "B");
     }
 
-    // --- (b) Follow-up bağlamı ---
+    // --- (b) Follow-up context ---
 
     @Test
     void followUp_previousTurnsAreInEffectivePrompt_butPersistedPromptStaysRaw() {
         when(threadRepository.findById(7L)).thenAnswer(inv -> {
-            ConversationThreadEntity thread = new ConversationThreadEntity("önceki soru");
+            ConversationThreadEntity thread = new ConversationThreadEntity("previous question");
             ReflectionTestUtils.setField(thread, "id", 7L);
             return Optional.of(thread);
         });
-        ConversationEntity previousTurn = new ConversationEntity("Önceki soru");
-        previousTurn.setFinalAnswer("Önceki cevap");
+        ConversationEntity previousTurn = new ConversationEntity("Previous question");
+        previousTurn.setFinalAnswer("Previous answer");
         when(repository.findByThreadIdOrderByCreatedAtAsc(7L)).thenReturn(List.of(previousTurn));
 
-        LlmProviderAdapter a = member("A", LlmResponse.ok("A", "görüş"), LlmResponse.ok("A", "review"), null);
-        LlmProviderAdapter b = member("B", LlmResponse.ok("B", "görüş"), LlmResponse.ok("B", "review"), null);
-        LlmProviderAdapter c = member("C", null, null, LlmResponse.ok("C", "sentez"));
+        LlmProviderAdapter a = member("A", LlmResponse.ok("A", "opinion"), LlmResponse.ok("A", "review"), null);
+        LlmProviderAdapter b = member("B", LlmResponse.ok("B", "opinion"), LlmResponse.ok("B", "review"), null);
+        LlmProviderAdapter c = member("C", null, null, LlmResponse.ok("C", "synthesis"));
         when(settingsService.getDecryptedSettingsOrThrow()).thenReturn(settings("C", "A", "B", "C"));
         when(memberFactory.buildAllMembers(any())).thenReturn(List.of(a, b, c));
 
-        CouncilResult result = service.deliberate("Yeni soru", 7L, false);
+        CouncilResult result = service.deliberate("New question", 7L, false);
 
         ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
         verify(a, times(2)).generateResponse(captor.capture());
         String firstOpinionPrompt = captor.getAllValues().get(0);
-        assertThat(firstOpinionPrompt).contains("Önceki soru").contains("Önceki cevap").contains("Önceki tur");
-        assertThat(firstOpinionPrompt).contains("Yeni soru");
+        assertThat(firstOpinionPrompt).contains("Previous question").contains("Previous answer").contains("Previous turn");
+        assertThat(firstOpinionPrompt).contains("New question");
 
-        assertThat(result.prompt()).isEqualTo("Yeni soru"); // ham soru, bağlam blobu değil
+        assertThat(result.prompt()).isEqualTo("New question"); // raw question, not the context blob
         assertThat(result.threadId()).isEqualTo(7L);
     }
 
-    // --- (c) Web arama entegrasyonu ---
+    // --- (c) Web search integration ---
 
     @Test
     void webSearch_enabledWithKey_resultsInPromptAndResponse_butPersistedPromptStaysRaw() {
         stubNewThread();
-        LlmProviderAdapter a = member("A", LlmResponse.ok("A", "görüş"), LlmResponse.ok("A", "review"), null);
-        LlmProviderAdapter b = member("B", LlmResponse.ok("B", "görüş"), LlmResponse.ok("B", "review"), null);
-        LlmProviderAdapter c = member("C", null, null, LlmResponse.ok("C", "sentez"));
+        LlmProviderAdapter a = member("A", LlmResponse.ok("A", "opinion"), LlmResponse.ok("A", "review"), null);
+        LlmProviderAdapter b = member("B", LlmResponse.ok("B", "opinion"), LlmResponse.ok("B", "review"), null);
+        LlmProviderAdapter c = member("C", null, null, LlmResponse.ok("C", "synthesis"));
         when(settingsService.getDecryptedSettingsOrThrow()).thenReturn(settingsWithTavily("C", "tav-key", "A", "B", "C"));
         when(memberFactory.buildAllMembers(any())).thenReturn(List.of(a, b, c));
-        when(webSearchService.search("ham soru", "tav-key"))
-                .thenReturn(List.of(new WebSearchResult("T1", "http://u", "snippet-içerik")));
+        when(webSearchService.search("raw question", "tav-key"))
+                .thenReturn(List.of(new WebSearchResult("T1", "http://u", "snippet-content")));
 
-        CouncilResult result = service.deliberate("ham soru", null, true);
+        CouncilResult result = service.deliberate("raw question", null, true);
 
         ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
         verify(a, times(2)).generateResponse(captor.capture());
-        assertThat(captor.getAllValues().get(0)).contains("T1").contains("snippet-içerik").contains("web araması");
+        assertThat(captor.getAllValues().get(0)).contains("T1").contains("snippet-content").contains("web search");
 
         assertThat(result.webSearchResults()).hasSize(1);
-        assertThat(result.prompt()).isEqualTo("ham soru");
-        verify(webSearchService).search("ham soru", "tav-key");
+        assertThat(result.prompt()).isEqualTo("raw question");
+        verify(webSearchService).search("raw question", "tav-key");
     }
 
     @Test
@@ -189,7 +189,7 @@ class CouncilServiceTest {
         when(settingsService.getDecryptedSettingsOrThrow()).thenReturn(settingsWithTavily("C", "tav-key", "A", "C"));
         when(memberFactory.buildAllMembers(any())).thenReturn(List.of(a, c));
 
-        service.deliberate("soru", null, false);
+        service.deliberate("question", null, false);
 
         verify(webSearchService, never()).search(any(), any());
     }
@@ -202,23 +202,23 @@ class CouncilServiceTest {
         when(settingsService.getDecryptedSettingsOrThrow()).thenReturn(settings("C", "A", "C")); // tavilyKey=null
         when(memberFactory.buildAllMembers(any())).thenReturn(List.of(a, c));
 
-        service.deliberate("soru", null, true);
+        service.deliberate("question", null, true);
 
         verify(webSearchService, never()).search(any(), any());
     }
 
-    // --- (d) Tüm üyeler başarısız ---
+    // --- (d) All members fail ---
 
     @Test
     void allFirstOpinionsFail_returnsFallbackMessage_presidentNeverCalled() {
         stubNewThread();
-        LlmProviderAdapter a = member("A", LlmResponse.failed("A", "zaman aşımı"), null, null);
+        LlmProviderAdapter a = member("A", LlmResponse.failed("A", "timeout"), null, null);
         LlmProviderAdapter b = member("B", LlmResponse.failed("B", "rate limit"), null, null);
-        LlmProviderAdapter c = member("C", null, null, LlmResponse.ok("C", "sentez"));
+        LlmProviderAdapter c = member("C", null, null, LlmResponse.ok("C", "synthesis"));
         when(settingsService.getDecryptedSettingsOrThrow()).thenReturn(settings("C", "A", "B", "C"));
         when(memberFactory.buildAllMembers(any())).thenReturn(List.of(a, b, c));
 
-        CouncilResult result = service.deliberate("soru", null, false);
+        CouncilResult result = service.deliberate("question", null, false);
 
         assertThat(result.finalAnswer()).isEqualTo("The council could not produce an answer because all members failed.");
         assertThat(result.reviews()).isEmpty();
@@ -226,40 +226,40 @@ class CouncilServiceTest {
         verify(c, never()).generateResponse(any());
     }
 
-    // --- (e) Başkan sentez fallback'i ---
+    // --- (e) President synthesis fallback ---
 
     @Test
     void presidentSynthesisFails_fallsBackToFirstSuccessfulCouncilor() {
         stubNewThread();
-        LlmProviderAdapter a = member("A", LlmResponse.ok("A", "görüş"), LlmResponse.ok("A", "review"),
-                LlmResponse.ok("A", "A-sentez"));
-        LlmProviderAdapter b = member("B", LlmResponse.ok("B", "görüş"), LlmResponse.ok("B", "review"), null);
-        LlmProviderAdapter c = member("C", null, null, LlmResponse.failed("C", "başkan çöktü"));
+        LlmProviderAdapter a = member("A", LlmResponse.ok("A", "opinion"), LlmResponse.ok("A", "review"),
+                LlmResponse.ok("A", "A-synthesis"));
+        LlmProviderAdapter b = member("B", LlmResponse.ok("B", "opinion"), LlmResponse.ok("B", "review"), null);
+        LlmProviderAdapter c = member("C", null, null, LlmResponse.failed("C", "president crashed"));
         when(settingsService.getDecryptedSettingsOrThrow()).thenReturn(settings("C", "A", "B", "C"));
         when(memberFactory.buildAllMembers(any())).thenReturn(List.of(a, b, c));
 
-        CouncilResult result = service.deliberate("soru", null, false);
+        CouncilResult result = service.deliberate("question", null, false);
 
         assertThat(result.presidentProvider()).isEqualTo("A");
-        assertThat(result.finalAnswer()).isEqualTo("A-sentez");
+        assertThat(result.finalAnswer()).isEqualTo("A-synthesis");
     }
 
     @Test
     void allSynthesisAttemptsFail_returnsPresidentFailedMessage() {
         stubNewThread();
-        LlmProviderAdapter a = member("A", LlmResponse.ok("A", "görüş"), LlmResponse.ok("A", "review"),
-                LlmResponse.failed("A", "A da çöktü"));
-        LlmProviderAdapter c = member("C", null, null, LlmResponse.failed("C", "başkan çöktü"));
+        LlmProviderAdapter a = member("A", LlmResponse.ok("A", "opinion"), LlmResponse.ok("A", "review"),
+                LlmResponse.failed("A", "A crashed too"));
+        LlmProviderAdapter c = member("C", null, null, LlmResponse.failed("C", "president crashed"));
         when(settingsService.getDecryptedSettingsOrThrow()).thenReturn(settings("C", "A", "C"));
         when(memberFactory.buildAllMembers(any())).thenReturn(List.of(a, c));
 
-        CouncilResult result = service.deliberate("soru", null, false);
+        CouncilResult result = service.deliberate("question", null, false);
 
         assertThat(result.presidentProvider()).isEqualTo("C");
         assertThat(result.finalAnswer()).startsWith("President provider failed:");
     }
 
-    // --- (f) Thread çözümleme ---
+    // --- (f) Thread resolution ---
 
     @Test
     void resolveThread_nullThreadId_createsNewThread() {
@@ -269,17 +269,17 @@ class CouncilServiceTest {
         when(settingsService.getDecryptedSettingsOrThrow()).thenReturn(settings("C", "A", "C"));
         when(memberFactory.buildAllMembers(any())).thenReturn(List.of(a, c));
 
-        CouncilResult result = service.deliberate("ilk soru", null, false);
+        CouncilResult result = service.deliberate("first question", null, false);
 
         ArgumentCaptor<ConversationThreadEntity> captor = ArgumentCaptor.forClass(ConversationThreadEntity.class);
         verify(threadRepository).save(captor.capture());
-        assertThat(captor.getValue().getTitle()).isEqualTo("ilk soru");
+        assertThat(captor.getValue().getTitle()).isEqualTo("first question");
         assertThat(result.threadId()).isEqualTo(42L);
     }
 
     @Test
     void resolveThread_existingThreadId_touchesAndSaves() {
-        ConversationThreadEntity existing = new ConversationThreadEntity("eski başlık");
+        ConversationThreadEntity existing = new ConversationThreadEntity("old title");
         ReflectionTestUtils.setField(existing, "id", 7L);
         var originalUpdatedAt = existing.getUpdatedAt();
         when(threadRepository.findById(7L)).thenReturn(Optional.of(existing));
@@ -290,7 +290,7 @@ class CouncilServiceTest {
         when(settingsService.getDecryptedSettingsOrThrow()).thenReturn(settings("C", "A", "C"));
         when(memberFactory.buildAllMembers(any())).thenReturn(List.of(a, c));
 
-        CouncilResult result = service.deliberate("takip sorusu", 7L, false);
+        CouncilResult result = service.deliberate("follow-up question", 7L, false);
 
         verify(threadRepository).save(existing);
         assertThat(existing.getUpdatedAt()).isAfterOrEqualTo(originalUpdatedAt);
@@ -301,7 +301,7 @@ class CouncilServiceTest {
     void resolveThread_unknownThreadId_throwsConversationNotFound() {
         when(threadRepository.findById(99L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.deliberate("soru", 99L, false))
+        assertThatThrownBy(() -> service.deliberate("question", 99L, false))
                 .isInstanceOf(ConversationNotFoundException.class);
     }
 
@@ -311,19 +311,19 @@ class CouncilServiceTest {
     void persist_savesTranscriptThatRoundTripsBackToSameResult() {
         stubNewThread();
         LlmProviderAdapter a = member("A", LlmResponse.ok("A", "g"), LlmResponse.ok("A", "r"), null);
-        LlmProviderAdapter c = member("C", null, null, LlmResponse.ok("C", "final cevap"));
+        LlmProviderAdapter c = member("C", null, null, LlmResponse.ok("C", "final answer"));
         when(settingsService.getDecryptedSettingsOrThrow()).thenReturn(settings("C", "A", "C"));
         when(memberFactory.buildAllMembers(any())).thenReturn(List.of(a, c));
 
-        service.deliberate("persist testi", null, false);
+        service.deliberate("persist test", null, false);
 
         ArgumentCaptor<ConversationEntity> captor = ArgumentCaptor.forClass(ConversationEntity.class);
         verify(repository).save(captor.capture());
         ConversationEntity saved = captor.getValue();
-        assertThat(saved.getFinalAnswer()).isEqualTo("final cevap");
+        assertThat(saved.getFinalAnswer()).isEqualTo("final answer");
 
         CouncilResult roundTripped = objectMapper.readValue(saved.getTranscript(), CouncilResult.class);
-        assertThat(roundTripped.prompt()).isEqualTo("persist testi");
-        assertThat(roundTripped.finalAnswer()).isEqualTo("final cevap");
+        assertThat(roundTripped.prompt()).isEqualTo("persist test");
+        assertThat(roundTripped.finalAnswer()).isEqualTo("final answer");
     }
 }

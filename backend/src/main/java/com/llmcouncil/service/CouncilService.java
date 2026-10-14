@@ -21,12 +21,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
- * Konsey iş akışının 3 aşaması: first opinions (paralel fan-out, başkan HARİÇ) → peer review
- * (anonimleştirilmiş karşılıklı eleştiri, başkan HARİÇ) → final sentez (sadece başkan).
- * Başkan artık kendi görüşünü vermez/eleştiri yapmaz — sadece diğer üyeleri dinleyip nihai
- * kararı veren saf bir hakem rolündedir. Üyeler ve başkan, her çağrıda kullanıcının kayıtlı
- * ayarlarından (bkz. {@link CouncilMemberFactory}) dinamik olarak kurulur.
- * Sonuç, tam süreciyle (transcript) birlikte kalıcı hale getirilir.
+ * The council workflow has 3 stages: first opinions (parallel fan-out, president EXCLUDED) →
+ * peer review (anonymized mutual critique, president EXCLUDED) → final synthesis (president
+ * only). The president no longer gives its own opinion or critiques anyone — it's a pure judge
+ * role that just listens to the other members and renders the final verdict. Members and the
+ * president are built dynamically on every call from the user's saved settings (see
+ * {@link CouncilMemberFactory}). The result is persisted along with its full process (transcript).
  */
 @Service
 public class CouncilService {
@@ -55,9 +55,10 @@ public class CouncilService {
     }
 
     /**
-     * {@code threadId} null ise yeni bir konuşma başlatılır; doluysa o thread'e follow-up olarak
-     * eklenir. {@code webSearch} true ve Tavily key kayıtlıysa, üyeler soruyu yanıtlamadan önce
-     * güncel web sonuçlarını bağlam olarak görür (arama başarısız olursa sessizce atlanır).
+     * If {@code threadId} is null, a new conversation is started; if set, this is appended to
+     * that thread as a follow-up. When {@code webSearch} is true and a Tavily key is configured,
+     * members see current web results as context before answering (if the search fails, it's
+     * silently skipped).
      */
     public CouncilResult deliberate(String prompt, Long threadId, boolean webSearch) {
         long resolvedThreadId = resolveThread(threadId, prompt);
@@ -78,7 +79,7 @@ public class CouncilService {
                 .filter(member -> member.getProviderName().equals(presidentId))
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException(
-                        "Başkan modeli ('" + presidentId + "') seçili üyeler arasında bulunamadı."));
+                        "President model ('" + presidentId + "') was not found among the selected members."));
 
         List<LlmProviderAdapter> councilors = allMembers.stream()
                 .filter(member -> !member.getProviderName().equals(presidentId))
@@ -106,11 +107,11 @@ public class CouncilService {
         return result;
     }
 
-    /** @return var olan thread'in id'si, ya da yeni oluşturulan thread'in id'si. */
+    /** @return the existing thread's id, or the newly created thread's id. */
     private long resolveThread(Long threadId, String firstPrompt) {
         if (threadId != null) {
             ConversationThreadEntity thread = threadRepository.findById(threadId)
-                    .orElseThrow(() -> new ConversationNotFoundException("Konuşma bulunamadı: " + threadId));
+                    .orElseThrow(() -> new ConversationNotFoundException("Conversation not found: " + threadId));
             thread.touch();
             threadRepository.save(thread);
             return threadId;
@@ -119,8 +120,8 @@ public class CouncilService {
     }
 
     /**
-     * Önceki turları ve/veya web araması sonuçlarını (varsa) bağlam olarak başa ekler; ikisi de
-     * yoksa soruyu olduğu gibi döner.
+     * Prepends prior turns and/or web search results (if any) as context; if neither is present,
+     * returns the question as-is.
      */
     private String buildContextualPrompt(List<ConversationEntity> history, List<WebSearchResult> searchResults,
                                           String latestPrompt) {
@@ -128,9 +129,9 @@ public class CouncilService {
 
         if (!history.isEmpty()) {
             String historyBlock = history.stream()
-                    .map(turn -> "Kullanıcı: " + turn.getPrompt() + "\nKonsey: " + turn.getFinalAnswer())
+                    .map(turn -> "User: " + turn.getPrompt() + "\nCouncil: " + turn.getFinalAnswer())
                     .collect(Collectors.joining("\n\n"));
-            context.append("Bu, devam eden bir konuşmanın parçası. Önceki tur(lar):\n\n")
+            context.append("This is part of an ongoing conversation. Previous turn(s):\n\n")
                     .append(historyBlock)
                     .append("\n\n");
         }
@@ -139,7 +140,7 @@ public class CouncilService {
             String searchBlock = searchResults.stream()
                     .map(r -> "- %s (%s)\n  %s".formatted(r.title(), r.url(), r.content()))
                     .collect(Collectors.joining("\n\n"));
-            context.append("Güncel web araması sonuçları (soruyu yanıtlarken gerekirse kullan, kaynak göstermene gerek yok):\n\n")
+            context.append("Current web search results (use them if helpful when answering; no need to cite sources):\n\n")
                     .append(searchBlock)
                     .append("\n\n");
         }
@@ -147,7 +148,7 @@ public class CouncilService {
         if (context.isEmpty()) {
             return latestPrompt;
         }
-        context.append(history.isEmpty() ? "Soru: " : "Kullanıcının yeni sorusu: ").append(latestPrompt);
+        context.append(history.isEmpty() ? "Question: " : "User's new question: ").append(latestPrompt);
         return context.toString();
     }
 

@@ -8,9 +8,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.Map;
 
 /**
- * Ayarlar/model proxy endpoint'lerindeki beklenen hata durumlarını anlamlı HTTP kodlarına çevirir.
- * Hiçbir durumda istek/yanıt header'ları (ör. Authorization) buradan dışarı sızmaz — sadece
- * exception mesajı döner.
+ * Translates expected error conditions in the settings/model proxy endpoints into meaningful
+ * HTTP status codes. Request/response headers (e.g. Authorization) never leak out through here
+ * under any circumstances — only the exception message is returned.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {

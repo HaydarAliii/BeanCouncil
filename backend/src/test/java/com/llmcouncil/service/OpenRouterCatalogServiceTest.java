@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
-/** OpenRouter'ın /models ve /key sözleşmesini gerçek ağa çıkmadan doğrular (MockWebServer). */
+/** Verifies the OpenRouter /models and /key contract without hitting the real network (MockWebServer). */
 @ExtendWith(MockitoExtension.class)
 class OpenRouterCatalogServiceTest {
 

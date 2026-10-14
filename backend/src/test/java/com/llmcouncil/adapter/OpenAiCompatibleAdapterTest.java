@@ -13,7 +13,7 @@ import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** OpenRouter'ın chat/completions sözleşmesini gerçek ağa çıkmadan doğrular (MockWebServer). */
+/** Verifies the OpenRouter chat/completions contract without hitting the real network (MockWebServer). */
 class OpenAiCompatibleAdapterTest {
 
     MockWebServer server;
@@ -39,27 +39,27 @@ class OpenAiCompatibleAdapterTest {
         server.enqueue(new MockResponse.Builder()
                 .addHeader("Content-Type", "application/json")
                 .body("""
-                        {"choices":[{"message":{"role":"assistant","content":"merhaba"}}]}""")
+                        {"choices":[{"message":{"role":"assistant","content":"hello"}}]}""")
                 .build());
 
-        LlmResponse response = adapter("sk-test").generateResponse("soru").join();
+        LlmResponse response = adapter("sk-test").generateResponse("question").join();
 
         assertThat(response.success()).isTrue();
-        assertThat(response.content()).isEqualTo("merhaba");
+        assertThat(response.content()).isEqualTo("hello");
         assertThat(response.providerName()).isEqualTo("openai/gpt-5");
 
         RecordedRequest request = server.takeRequest();
         assertThat(request.getTarget()).isEqualTo("/chat/completions");
         assertThat(request.getHeaders().get("Authorization")).isEqualTo("Bearer sk-test");
         String body = request.getBody().utf8();
-        assertThat(body).contains("\"model\":\"openai/gpt-5\"").contains("\"content\":\"soru\"");
+        assertThat(body).contains("\"model\":\"openai/gpt-5\"").contains("\"content\":\"question\"");
     }
 
     @Test
     void httpError_returnsFailedResponse_neverThrows() {
         server.enqueue(new MockResponse.Builder().code(500).body("internal error").build());
 
-        LlmResponse response = adapter("sk-test").generateResponse("soru").join();
+        LlmResponse response = adapter("sk-test").generateResponse("question").join();
 
         assertThat(response.success()).isFalse();
         assertThat(response.errorMessage()).isNotNull();
@@ -73,7 +73,7 @@ class OpenAiCompatibleAdapterTest {
                 .body("{}")
                 .build());
 
-        LlmResponse response = adapter("sk-test").generateResponse("soru").join();
+        LlmResponse response = adapter("sk-test").generateResponse("question").join();
 
         assertThat(response.success()).isFalse();
     }
@@ -86,7 +86,7 @@ class OpenAiCompatibleAdapterTest {
                         {"choices":[{"message":{"role":"assistant","content":"ok"}}]}""")
                 .build());
 
-        adapter(null).generateResponse("soru").join();
+        adapter(null).generateResponse("question").join();
 
         RecordedRequest request = server.takeRequest();
         assertThat(request.getHeaders().get("Authorization")).isNull();

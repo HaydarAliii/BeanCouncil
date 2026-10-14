@@ -11,9 +11,9 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * LlmProviderAdapter'ın OpenAI-uyumlu chat completions formatını (Groq, xAI, g4f, ...)
- * konuşan herhangi bir sağlayıcı için genel implementasyonu. apiKey null/boş verilirse
- * Authorization header hiç eklenmez (g4f gibi auth gerektirmeyen sağlayıcılar için).
+ * Generic LlmProviderAdapter implementation for any provider that speaks the OpenAI-compatible
+ * chat completions format (Groq, xAI, g4f, ...). If apiKey is null/blank, no Authorization header
+ * is added at all (for providers like g4f that don't require auth).
  */
 public class OpenAiCompatibleAdapter implements LlmProviderAdapter {
 

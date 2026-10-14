@@ -1,6 +1,6 @@
 package com.llmcouncil.model.dto;
 
-/** OpenRouter /key yanıtından türetilmiş kredi/limit durumu. */
+/** Credit/limit status derived from the OpenRouter /key response. */
 public record KeyStatus(
         String label,
         Double limit,

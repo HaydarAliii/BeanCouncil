@@ -1,5 +1,5 @@
 package com.llmcouncil.model.dto;
 
-/** Tavily arama sonuçlarından tek bir kayıt. */
+/** A single record from the Tavily search results. */
 public record WebSearchResult(String title, String url, String content) {
 }

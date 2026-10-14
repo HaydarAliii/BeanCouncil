@@ -37,7 +37,7 @@ function App() {
       setTurns((prev) => [...prev, councilResult]);
       setThreadId(councilResult.threadId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Beklenmeyen bir hata oluştu.');
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     } finally {
       setLoading(false);
     }
@@ -68,13 +68,13 @@ function App() {
         <h1>BeanCouncil</h1>
         <nav className="view-tabs">
           <button className={view === 'council' ? 'active' : ''} onClick={() => setView('council')}>
-            Konsey
+            Council
           </button>
           <button className={view === 'settings' ? 'active' : ''} onClick={() => setView('settings')}>
-            Ayarlar
+            Settings
           </button>
           <button className={view === 'history' ? 'active' : ''} onClick={() => setView('history')}>
-            Geçmiş
+            History
           </button>
         </nav>
       </div>
@@ -86,26 +86,27 @@ function App() {
       {view === 'council' && (
         <>
           <p className="subtitle">
-            Sorunu birden fazla AI modeline sor, birbirlerini değerlendirsinler, başkan sentezlesin.
+            Ask one question to multiple AI models, let them review each other's answers, and have the
+            president synthesize the final one.
           </p>
 
           {configured === false && (
             <p className="error-text">
-              Henüz yapılandırma tamamlanmadı. Lütfen Ayarlar sekmesinden OpenRouter key'ini gir ve konsey
-              üyelerini seç.
+              Setup isn't finished yet. Head to the Settings tab, enter your OpenRouter key, and pick your
+              council members.
             </p>
           )}
 
           {turns.length > 0 && (
             <button className="new-conversation-button" onClick={handleNewConversation}>
-              + Yeni konuşma
+              + New conversation
             </button>
           )}
 
           <PromptForm
             loading={loading}
             onSubmit={handleSubmit}
-            placeholder={turns.length > 0 ? 'Takip sorunu yaz...' : undefined}
+            placeholder={turns.length > 0 ? 'Write a follow-up question...' : undefined}
             webSearchAvailable={webSearchAvailable}
           />
 

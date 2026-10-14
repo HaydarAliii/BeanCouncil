@@ -8,7 +8,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class SecretCipherTest {
 
     private static final String SECRET = "test-master-secret-value";
-    private static final String SALT = "abcdef0123456789"; // Encryptors.delux hex salt bekler
+    private static final String SALT = "abcdef0123456789"; // Encryptors.delux expects a hex salt
 
     @Test
     void blankSecret_throwsIllegalState() {
@@ -48,7 +48,7 @@ class SecretCipherTest {
     @Test
     void encryptThenDecrypt_roundTripsToOriginal() {
         SecretCipher cipher = new SecretCipher(SECRET, SALT);
-        String plaintext = "sk-or-v1-gerçek-bir-key-degil-ama-ayni-sekilde-uzun";
+        String plaintext = "sk-or-v1-not-a-real-key-but-just-as-long";
 
         String ciphertext = cipher.encrypt(plaintext);
 
@@ -58,10 +58,10 @@ class SecretCipherTest {
 
     @Test
     void encrypt_sameInputTwice_producesDifferentCiphertext() {
-        // Encryptors.delux her şifrelemede rastgele bir IV kullanır — aynı girdi için bile
-        // çıktı her seferinde farklı olmalı (authenticated encryption'ın beklenen özelliği).
+        // Encryptors.delux uses a random IV on every encryption — the output should differ
+        // every time even for the same input (the expected property of authenticated encryption).
         SecretCipher cipher = new SecretCipher(SECRET, SALT);
-        String plaintext = "ayni-girdi";
+        String plaintext = "same-input";
 
         String first = cipher.encrypt(plaintext);
         String second = cipher.encrypt(plaintext);

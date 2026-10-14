@@ -3,9 +3,9 @@ package com.llmcouncil.model.dto;
 import jakarta.validation.constraints.NotBlank;
 
 /**
- * {@code threadId} boşsa yeni bir konuşma başlatılır; doluysa o thread'e follow-up eklenir.
- * {@code webSearch} true ve Tavily key kayıtlıysa, konsey üyeleri soruyu yanıtlamadan önce
- * güncel web sonuçlarını bağlam olarak görür.
+ * If {@code threadId} is empty, a new conversation is started; if set, a follow-up is appended
+ * to that thread. When {@code webSearch} is true and a Tavily key is configured, council members
+ * see current web results as context before answering the question.
  */
 public record ChatRequest(@NotBlank String prompt, Long threadId, Boolean webSearch) {
 }

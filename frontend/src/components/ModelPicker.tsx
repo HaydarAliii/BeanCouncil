@@ -21,17 +21,17 @@ export function ModelPicker({ models, keyStatus, selected, president, onToggle, 
 
   return (
     <section className="model-picker">
-      <h3>Konsey Üyeleri</h3>
+      <h3>Council Members</h3>
       <p className="settings-hint">
-        En az 2 model seç, aralarından birini başkan yap. Başkan ilk görüş vermez/eleştiri yapmaz —
-        sadece diğerlerini dinleyip nihai kararı verir.
+        Select at least 2 models and make one of them president. The president doesn't give a first
+        opinion or review the others — it just listens to everyone and makes the final call.
       </p>
 
       {keyStatus && (
         <p className="credit-status">
-          {keyStatus.isFreeTier ? 'Ücretsiz katman' : 'Ücretli hesap'}
+          {keyStatus.isFreeTier ? 'Free tier' : 'Paid account'}
           {keyStatus.limit != null && keyStatus.usage != null && (
-            <> — kredi: {(keyStatus.limit - keyStatus.usage).toFixed(2)} / {keyStatus.limit.toFixed(2)} $ kaldı</>
+            <> — credit: ${(keyStatus.limit - keyStatus.usage).toFixed(2)} / ${keyStatus.limit.toFixed(2)} left</>
           )}
         </p>
       )}
@@ -39,7 +39,7 @@ export function ModelPicker({ models, keyStatus, selected, president, onToggle, 
       <input
         className="model-filter"
         type="text"
-        placeholder="Model ara (ör. claude, gemini, gpt, grok...)"
+        placeholder="Search models (e.g. claude, gemini, gpt, grok...)"
         value={filter}
         onChange={(e) => setFilter(e.target.value)}
       />
@@ -53,7 +53,7 @@ export function ModelPicker({ models, keyStatus, selected, president, onToggle, 
               <span className="model-name">{model.name}</span>
               <span className="model-id">{model.id}</span>
               <span className={`model-badge ${model.isFree ? 'badge-free' : 'badge-paid'}`}>
-                {model.isFree ? 'Ücretsiz' : 'Ücretli'}
+                {model.isFree ? 'Free' : 'Paid'}
               </span>
               <input
                 type="radio"
@@ -61,12 +61,12 @@ export function ModelPicker({ models, keyStatus, selected, president, onToggle, 
                 checked={president === model.id}
                 disabled={!isSelected}
                 onChange={() => onSelectPresident(model.id)}
-                title="Başkan yap"
+                title="Make president"
               />
             </label>
           );
         })}
-        {filtered.length === 0 && <p className="settings-hint">Eşleşen model bulunamadı.</p>}
+        {filtered.length === 0 && <p className="settings-hint">No matching models found.</p>}
       </div>
     </section>
   );

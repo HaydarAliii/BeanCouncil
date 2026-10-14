@@ -24,11 +24,11 @@ function OpinionCard({ opinion }: { opinion: LlmResponse }) {
 export function ProcessDetails({ result }: ProcessDetailsProps) {
   return (
     <details className="process-details">
-      <summary>Süreci göster</summary>
+      <summary>Show process</summary>
 
       {result.webSearchResults.length > 0 && (
         <>
-          <h3>🔍 Web Araştırması Sonuçları</h3>
+          <h3>🔍 Web Search Results</h3>
           <div className="search-result-list">
             {result.webSearchResults.map((r) => (
               <a key={r.url} className="search-result-card" href={r.url} target="_blank" rel="noreferrer">
@@ -41,14 +41,14 @@ export function ProcessDetails({ result }: ProcessDetailsProps) {
         </>
       )}
 
-      <h3>İlk Görüşler</h3>
+      <h3>First Opinions</h3>
       <div className="opinion-grid">
         {result.firstOpinions.map((opinion) => (
           <OpinionCard key={opinion.providerName} opinion={opinion} />
         ))}
       </div>
 
-      <h3>Karşılıklı Değerlendirme</h3>
+      <h3>Peer Review</h3>
       <div className="opinion-grid">
         {result.reviews.map((review, index) => (
           <OpinionCard key={`${review.providerName}-${index}`} opinion={review} />

@@ -15,9 +15,9 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Tavily sözleşmesini doğrular — özellikle "arama hiçbir zaman konseyi bozmaz" tasarım sözünü:
- * her türlü hata (401, bozuk yanıt, bağlantı kopukluğu) boş liste ile sonuçlanmalı, exception
- * ASLA dışarı sızmamalı.
+ * Verifies the Tavily contract — specifically the "search never breaks the council" design
+ * promise: every kind of failure (401, malformed response, connection drop) must result in an
+ * empty list, and an exception must NEVER escape.
  */
 class WebSearchServiceTest {
 
@@ -44,7 +44,7 @@ class WebSearchServiceTest {
                         {"results":[{"title":"T","url":"http://u","content":"C"}]}""")
                 .build());
 
-        List<WebSearchResult> results = service.search("soru", "tvly-key");
+        List<WebSearchResult> results = service.search("question", "tvly-key");
 
         assertThat(results).hasSize(1);
         assertThat(results.get(0).title()).isEqualTo("T");
@@ -55,14 +55,14 @@ class WebSearchServiceTest {
         assertThat(request.getTarget()).isEqualTo("/search");
         assertThat(request.getHeaders().get("Authorization")).isEqualTo("Bearer tvly-key");
         String body = request.getBody().utf8();
-        assertThat(body).contains("\"max_results\":5").contains("\"search_depth\":\"basic\"").contains("\"query\":\"soru\"");
+        assertThat(body).contains("\"max_results\":5").contains("\"search_depth\":\"basic\"").contains("\"query\":\"question\"");
     }
 
     @Test
     void search_401_returnsEmptyList_neverThrows() {
         server.enqueue(new MockResponse.Builder().code(401).build());
 
-        List<WebSearchResult> results = service.search("soru", "bad-key");
+        List<WebSearchResult> results = service.search("question", "bad-key");
 
         assertThat(results).isEmpty();
     }
@@ -71,10 +71,10 @@ class WebSearchServiceTest {
     void search_malformedJson_returnsEmptyList_neverThrows() {
         server.enqueue(new MockResponse.Builder()
                 .addHeader("Content-Type", "application/json")
-                .body("bu geçerli bir json değil")
+                .body("this is not valid json")
                 .build());
 
-        List<WebSearchResult> results = service.search("soru", "key");
+        List<WebSearchResult> results = service.search("question", "key");
 
         assertThat(results).isEmpty();
     }
@@ -84,19 +84,19 @@ class WebSearchServiceTest {
         server.enqueue(new MockResponse.Builder()
                 .addHeader("Content-Type", "application/json")
                 .body("""
-                        {"query":"soru"}""")
+                        {"query":"question"}""")
                 .build());
 
-        List<WebSearchResult> results = service.search("soru", "key");
+        List<WebSearchResult> results = service.search("question", "key");
 
         assertThat(results).isEmpty();
     }
 
     @Test
     void search_connectionFailure_returnsEmptyList_neverThrows() throws IOException {
-        server.close(); // sunucu kapalıyken istek bağlantı hatasıyla patlar
+        server.close(); // with the server down, the request blows up with a connection error
 
-        List<WebSearchResult> results = service.search("soru", "key");
+        List<WebSearchResult> results = service.search("question", "key");
 
         assertThat(results).isEmpty();
     }

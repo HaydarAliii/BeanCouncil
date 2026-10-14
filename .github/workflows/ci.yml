@@ -21,7 +21,7 @@ jobs:
           java-version: "21"
           cache: maven
 
-      # Docker/Postgres gerektirmez — tüm testler saf Mockito veya MockWebServer kullanıyor (Round 1).
+      # No Docker/Postgres needed — every test uses pure Mockito or MockWebServer (Round 1).
       - run: mvn -B test
 
   frontend-checks:
@@ -40,7 +40,7 @@ jobs:
 
       - run: npm ci
       - run: npm run lint
-      # jsdom üzerinde koşar, Docker/tarayıcı ikili dosyası gerektirmez (Round 1).
+      # Runs on jsdom, needs no Docker/browser binary (Round 1).
       - run: npm test
-      # build, tsc -b (tip kontrolü) + vite build'i birlikte çalıştırır.
+      # build runs tsc -b (type checking) together with vite build.
       - run: npm run build

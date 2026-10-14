@@ -1,12 +1,12 @@
 #!/bin/sh
-# nginx'in resmi image'ı /docker-entrypoint.d/ altındaki her çalıştırılabilir .sh'yi
-# nginx başlamadan ÖNCE otomatik çalıştırır. Burada, APP_AUTH_USERNAME/APP_AUTH_PASSWORD'den
-# nginx.conf'un auth_basic_user_file olarak kullandığı .htpasswd dosyasını üretiyoruz —
-# şifre hiçbir zaman image'a/git'e gömülmez, sadece container başlarken env'den üretilir.
+# nginx's official image automatically runs every executable .sh under /docker-entrypoint.d/
+# BEFORE nginx starts. Here we generate the .htpasswd file that nginx.conf uses as
+# auth_basic_user_file, from APP_AUTH_USERNAME/APP_AUTH_PASSWORD — the password is never
+# baked into the image or committed to git, only generated from env at container start.
 set -e
 
 if [ -z "$APP_AUTH_USERNAME" ] || [ -z "$APP_AUTH_PASSWORD" ]; then
-    echo "HATA: APP_AUTH_USERNAME / APP_AUTH_PASSWORD tanımlı değil — uygulama internete açık olacağından şifre koruması zorunlu." >&2
+    echo "ERROR: APP_AUTH_USERNAME / APP_AUTH_PASSWORD not set — password protection is required since the app is internet-facing." >&2
     exit 1
 fi
 

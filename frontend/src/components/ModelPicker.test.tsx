@@ -24,7 +24,7 @@ const models: ModelInfo[] = [
 ];
 
 describe('ModelPicker', () => {
-  it('her model için bir satır render eder, filtre id/name üzerinde case-insensitive daraltır', async () => {
+  it('renders one row per model, the filter narrows case-insensitively on id/name', async () => {
     render(
       <ModelPicker models={models} keyStatus={null} selected={[]} president={null} onToggle={vi.fn()} onSelectPresident={vi.fn()} />,
     );
@@ -32,23 +32,23 @@ describe('ModelPicker', () => {
     expect(screen.getByText('Claude Sonnet 5')).toBeInTheDocument();
     expect(screen.getByText('Qwen 3.8 27B')).toBeInTheDocument();
 
-    await userEvent.type(screen.getByPlaceholderText(/Model ara/), 'QWEN');
+    await userEvent.type(screen.getByPlaceholderText(/Search models/), 'QWEN');
 
     expect(screen.queryByText('Claude Sonnet 5')).not.toBeInTheDocument();
     expect(screen.getByText('Qwen 3.8 27B')).toBeInTheDocument();
   });
 
-  it('eşleşme yoksa "Eşleşen model bulunamadı." gösterir', async () => {
+  it('shows "No matching models found." when there is no match', async () => {
     render(
       <ModelPicker models={models} keyStatus={null} selected={[]} president={null} onToggle={vi.fn()} onSelectPresident={vi.fn()} />,
     );
 
-    await userEvent.type(screen.getByPlaceholderText(/Model ara/), 'zzz-yok');
+    await userEvent.type(screen.getByPlaceholderText(/Search models/), 'zzz-none');
 
-    expect(screen.getByText('Eşleşen model bulunamadı.')).toBeInTheDocument();
+    expect(screen.getByText('No matching models found.')).toBeInTheDocument();
   });
 
-  it('checkbox işaretlenince onToggle doğru model id ile çağrılır', async () => {
+  it('calls onToggle with the correct model id when a checkbox is checked', async () => {
     const onToggle = vi.fn();
     render(
       <ModelPicker models={models} keyStatus={null} selected={[]} president={null} onToggle={onToggle} onSelectPresident={vi.fn()} />,
@@ -60,7 +60,7 @@ describe('ModelPicker', () => {
     expect(onToggle).toHaveBeenCalledWith('qwen/qwen3.8-27b:free');
   });
 
-  it('başkan radio sadece seçili modellerde aktif olur, seçilince onSelectPresident çağrılır', async () => {
+  it('the president radio is only enabled for selected models, calls onSelectPresident when chosen', async () => {
     const onSelectPresident = vi.fn();
     render(
       <ModelPicker
@@ -74,14 +74,14 @@ describe('ModelPicker', () => {
     );
 
     const radios = screen.getAllByRole('radio');
-    expect(radios[0]).toBeDisabled(); // claude seçili değil
-    expect(radios[1]).toBeEnabled(); // qwen seçili
+    expect(radios[0]).toBeDisabled(); // claude is not selected
+    expect(radios[1]).toBeEnabled(); // qwen is selected
 
     await userEvent.click(radios[1]);
     expect(onSelectPresident).toHaveBeenCalledWith('qwen/qwen3.8-27b:free');
   });
 
-  it('keyStatus limit/usage varsa kalan krediyi hesaplar, keyStatus yoksa credit-status hiç render olmaz', () => {
+  it('computes remaining credit when keyStatus has limit/usage, never renders credit-status without keyStatus', () => {
     const { rerender, container } = render(
       <ModelPicker models={models} keyStatus={null} selected={[]} president={null} onToggle={vi.fn()} onSelectPresident={vi.fn()} />,
     );
@@ -98,18 +98,18 @@ describe('ModelPicker', () => {
       />,
     );
 
-    expect(screen.getByText(/7\.00 \/ 10\.00 \$ kaldı/)).toBeInTheDocument();
-    // "Ücretli hesap" ve "— kredi: ..." aynı <p> içinde ayrı text node'lar — tam metin eşleşmesi
-    // yerine .credit-status'un tüm metnini kontrol ediyoruz.
-    expect(container.querySelector('.credit-status')).toHaveTextContent('Ücretli hesap');
+    expect(screen.getByText(/\$7\.00 \/ \$10\.00 left/)).toBeInTheDocument();
+    // "Paid account" and "— credit: ..." are separate text nodes within the same <p> — check
+    // the full text content of .credit-status instead of an exact text match.
+    expect(container.querySelector('.credit-status')).toHaveTextContent('Paid account');
   });
 
-  it("ücretsiz/ücretli rozeti model.isFree'ye göre doğru metni gösterir", () => {
+  it('shows the correct free/paid badge text based on model.isFree', () => {
     render(
       <ModelPicker models={models} keyStatus={null} selected={[]} president={null} onToggle={vi.fn()} onSelectPresident={vi.fn()} />,
     );
 
-    expect(screen.getByText('Ücretli')).toBeInTheDocument();
-    expect(screen.getByText('Ücretsiz')).toBeInTheDocument();
+    expect(screen.getByText('Paid')).toBeInTheDocument();
+    expect(screen.getByText('Free')).toBeInTheDocument();
   });
 });

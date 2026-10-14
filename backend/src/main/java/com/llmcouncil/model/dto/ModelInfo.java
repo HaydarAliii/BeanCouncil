@@ -1,6 +1,6 @@
 package com.llmcouncil.model.dto;
 
-/** OpenRouter /models'tan frontend'in model seçici için ihtiyaç duyduğu alanlara indirgenmiş görünüm. */
+/** View reduced from OpenRouter /models down to the fields the frontend's model picker needs. */
 public record ModelInfo(
         String id,
         String name,

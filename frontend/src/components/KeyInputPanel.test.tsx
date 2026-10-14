@@ -5,37 +5,37 @@ import { KeyInputPanel } from './KeyInputPanel';
 
 const baseProps = {
   title: 'OpenRouter API Key',
-  description: 'açıklama',
+  description: 'description',
   value: '',
   onChange: vi.fn(),
   emptyPlaceholder: 'sk-or-v1-...',
 };
 
 describe('KeyInputPanel', () => {
-  it('hasKey=true iken kayıtlı key önizlemesini gösterir', () => {
+  it('shows the saved key preview when hasKey=true', () => {
     render(<KeyInputPanel {...baseProps} hasKey keyPreview="••••1234" />);
 
     expect(screen.getByText('••••1234')).toBeInTheDocument();
   });
 
-  it('hasKey=false iken önizleme satırı hiç görünmez, emptyPlaceholder kullanılır', () => {
+  it('hides the preview line entirely when hasKey=false, uses emptyPlaceholder', () => {
     render(<KeyInputPanel {...baseProps} hasKey={false} keyPreview={null} />);
 
-    expect(screen.queryByText(/Kayıtlı key/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Saved key/)).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText('sk-or-v1-...')).toBeInTheDocument();
   });
 
-  it('hasKey=true iken placeholder "Değiştirmek için..." metnine döner', () => {
+  it('switches the placeholder to "Enter a new key..." when hasKey=true', () => {
     render(<KeyInputPanel {...baseProps} hasKey keyPreview="••••1234" />);
 
-    expect(screen.getByPlaceholderText('Değiştirmek için yeni key gir (opsiyonel)')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Enter a new key to change it (optional)')).toBeInTheDocument();
   });
 
-  it('yazı yazıldığında onChange tetiklenir', async () => {
+  it('triggers onChange when typing', async () => {
     const onChange = vi.fn();
     render(<KeyInputPanel {...baseProps} hasKey={false} keyPreview={null} onChange={onChange} />);
 
-    // type="password" input'u getByRole('textbox') ile bulunamaz — placeholder üzerinden eriş.
+    // type="password" input can't be found via getByRole('textbox') — use the placeholder instead.
     const input = screen.getByPlaceholderText('sk-or-v1-...');
     await userEvent.type(input, 'x');
 

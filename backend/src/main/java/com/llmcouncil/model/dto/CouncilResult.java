@@ -11,7 +11,7 @@ public record CouncilResult(
         Long threadId,
         List<WebSearchResult> webSearchResults) {
 
-    /** webSearchResults alanı eski (bu özellikten önceki) transcript JSON'larında hiç yok — eksikse boş listeye normalize eder. */
+    /** The webSearchResults field doesn't exist in older transcript JSON (predating this feature) — normalizes a missing value to an empty list. */
     public CouncilResult {
         if (webSearchResults == null) {
             webSearchResults = List.of();

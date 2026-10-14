@@ -26,9 +26,9 @@ public class ConversationEntity {
     @Column(columnDefinition = "TEXT")
     private String transcript;
 
-    /** Bu turun ait olduğu konuşma (thread). Eski (follow-up özelliğinden önceki) kayıtlarda
-     * başlangıçta null olabilir — {@code LegacyConversationMigration} bunları tek turluk kendi
-     * thread'lerine taşır. */
+    /** The conversation (thread) this turn belongs to. May initially be null on legacy records
+     * (from before the follow-up feature) — {@code LegacyConversationMigration} moves those into
+     * their own single-turn threads. */
     @Column
     private Long threadId;
 

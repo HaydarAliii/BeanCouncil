@@ -9,7 +9,7 @@ type FinalAnswerProps = {
 export function FinalAnswer({ result }: FinalAnswerProps) {
   return (
     <section className="final-answer">
-      <span className="president-badge">Konsey Başkanı: {result.presidentProvider}</span>
+      <span className="president-badge">Council President: {result.presidentProvider}</span>
       <div className="markdown">
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{result.finalAnswer}</ReactMarkdown>
       </div>

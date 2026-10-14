@@ -49,11 +49,11 @@ export function SettingsPage({ onSaved }: SettingsPageProps) {
             const status = await getKeyStatus();
             if (!cancelled) setKeyStatus(status);
           } catch {
-            // key kayıtlı ama OpenRouter'a ulaşılamadı/geçersiz — sessiz geç, kullanıcı yine de ayar yapabilir
+            // key is saved but OpenRouter is unreachable/invalid — fail silently, user can still adjust settings
           }
         }
       } catch (err) {
-        if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Ayarlar yüklenemedi.');
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Could not load settings.');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -101,20 +101,20 @@ export function SettingsPage({ onSaved }: SettingsPageProps) {
       }
       onSaved(response);
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Ayarlar kaydedilemedi.');
+      setSaveError(err instanceof Error ? err.message : 'Could not save settings.');
     } finally {
       setSaving(false);
     }
   }
 
-  if (loading) return <p className="settings-hint">Ayarlar yükleniyor...</p>;
+  if (loading) return <p className="settings-hint">Loading settings...</p>;
   if (loadError) return <p className="error-text">{loadError}</p>;
 
   return (
     <div className="settings-page">
       <KeyInputPanel
         title="OpenRouter API Key"
-        description="Key'in sadece backend'de şifreli saklanır, hiçbir zaman tam haliyle geri gösterilmez."
+        description="Your key is stored encrypted on the backend and is never shown back in full."
         hasKey={settings?.hasKey ?? false}
         keyPreview={settings?.keyPreview ?? null}
         value={keyInput}
@@ -123,14 +123,15 @@ export function SettingsPage({ onSaved }: SettingsPageProps) {
       />
 
       <KeyInputPanel
-        title="Web Araştırması (opsiyonel)"
+        title="Web Search (optional)"
         description={
           <>
+            Grab a free key from{' '}
             <a href="https://app.tavily.com/home" target="_blank" rel="noreferrer">
               Tavily
-            </a>
-            'den ücretsiz bir key alıp girersen, konseye "Web'de ara" seçeneğiyle soru sorabilirsin —
-            üyeler güncel arama sonuçlarını da görerek cevap verir. Boş bırakırsan bu özellik gizli kalır.
+            </a>{' '}
+            and enter it to ask the council with the "Search the web" option — members will factor in
+            live search results when answering. Leave it blank and this feature stays hidden.
           </>
         }
         hasKey={settings?.hasTavilyKey ?? false}
@@ -150,16 +151,16 @@ export function SettingsPage({ onSaved }: SettingsPageProps) {
       />
 
       {saveError && <p className="error-text">{saveError}</p>}
-      {saveSuccess && <p className="save-success">Ayarlar kaydedildi.</p>}
+      {saveSuccess && <p className="save-success">Settings saved.</p>}
 
       <button className="save-settings-button" disabled={!canSave || saving} onClick={handleSave}>
-        {saving ? 'Kaydediliyor...' : 'Kaydet'}
+        {saving ? 'Saving...' : 'Save'}
       </button>
       {!canSave && (
         <p className="settings-hint">
           {needsNewKey
-            ? 'Devam etmek için OpenRouter key gir.'
-            : 'En az 2 model seç ve aralarından bir başkan belirle.'}
+            ? 'Enter an OpenRouter key to continue.'
+            : 'Select at least 2 models and choose a president among them.'}
         </p>
       )}
     </div>

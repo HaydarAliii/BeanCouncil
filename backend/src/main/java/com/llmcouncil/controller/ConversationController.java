@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** Geçmişte sorulan konuşmaları listeler ve tam transcript detayını döner. */
+/** Lists past conversations and returns the full transcript detail. */
 @RestController
 @RequestMapping("/api/conversations")
 public class ConversationController {

@@ -11,8 +11,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Kullanıcının OpenRouter key'ini ve konsey üyesi/başkan seçimini okur/yazar. Gerçek key
- * hiçbir response'ta dönmez — sadece var/yok ve son 4 hane (bkz. {@link SettingsResponse}).
+ * Reads/writes the user's OpenRouter key and their council member/president selection. The
+ * actual key is never returned in any response — only whether it's set and its last 4 digits
+ * (see {@link SettingsResponse}).
  */
 @RestController
 @RequestMapping("/api/settings")

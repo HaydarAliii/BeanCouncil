@@ -16,9 +16,10 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Tek-satır ayar deposunu (key + seçili modeller + başkan) okuyup yazar. Key her zaman
- * {@link SecretCipher} ile şifreli DB'ye yazılır, çözülmüş hali sadece bu servisten dönen
- * {@link AppSettings} üzerinden ve sadece çağıran request'in ömrü boyunca bellekte tutulur.
+ * Reads and writes the single-row settings store (key + selected models + president). The key
+ * is always written to the DB encrypted with {@link SecretCipher}; the decrypted form is only
+ * ever held in memory, returned via this service's {@link AppSettings}, and only for the
+ * lifetime of the calling request.
  */
 @Service
 public class SettingsService {
@@ -40,31 +41,31 @@ public class SettingsService {
         return toResponse(repository.findSingleton().orElse(null));
     }
 
-    /** Konsey/model proxy akışlarının çağırdığı, key+model seçimi zorunlu olan okuma. */
+    /** Read used by council/model proxy flows, where a key and model selection are required. */
     public AppSettings getDecryptedSettingsOrThrow() {
         AppSettingsEntity entity = repository.findSingleton()
                 .orElseThrow(() -> new SettingsNotConfiguredException(
-                        "Ayarlar henüz yapılandırılmamış. Önce OpenRouter key'inizi girin ve konsey üyelerini seçin."));
+                        "Settings haven't been configured yet. Enter your OpenRouter key and select council members first."));
 
         String key = cipher.decrypt(entity.getOpenRouterKeyEncrypted());
         if (key == null || key.isBlank()) {
-            throw new SettingsNotConfiguredException("OpenRouter key girilmemiş. Lütfen Ayarlar'dan ekleyin.");
+            throw new SettingsNotConfiguredException("OpenRouter key is not set. Please add it in Settings.");
         }
 
         List<String> modelIds = parseModelIds(entity.getSelectedModelIdsJson());
         if (modelIds.size() < 2) {
-            throw new SettingsNotConfiguredException("En az 2 konsey üyesi seçilmeli. Lütfen Ayarlar'dan tamamlayın.");
+            throw new SettingsNotConfiguredException("At least 2 council members must be selected. Please finish setup in Settings.");
         }
         String presidentId = entity.getPresidentModelId();
         if (presidentId == null || presidentId.isBlank() || !modelIds.contains(presidentId)) {
-            throw new SettingsNotConfiguredException("Konsey başkanı seçili modeller arasından seçilmeli.");
+            throw new SettingsNotConfiguredException("The council president must be chosen from among the selected models.");
         }
 
         String tavilyKey = cipher.decrypt(entity.getTavilyKeyEncrypted());
         return new AppSettings(key, modelIds, presidentId, tavilyKey);
     }
 
-    /** Sadece key'in var olup olmadığını kontrol etmek için (ör. /api/models/key çağrısından önce). */
+    /** Used only to check whether a key exists (e.g. before calling /api/models/key). */
     public Optional<String> getDecryptedKey() {
         return repository.findSingleton()
                 .map(AppSettingsEntity::getOpenRouterKeyEncrypted)
@@ -74,7 +75,7 @@ public class SettingsService {
 
     public SettingsResponse save(SettingsRequest request) {
         if (!request.selectedModelIds().contains(request.presidentModelId())) {
-            throw new IllegalArgumentException("Başkan, seçili modeller arasından seçilmeli.");
+            throw new IllegalArgumentException("The president must be chosen from among the selected models.");
         }
 
         AppSettingsEntity entity = repository.findSingleton()
@@ -86,7 +87,7 @@ public class SettingsService {
         if (request.tavilyKey() != null && !request.tavilyKey().isBlank()) {
             entity.setTavilyKeyEncrypted(cipher.encrypt(request.tavilyKey()));
         }
-        // İkisi de boş/null gönderildiyse mevcut şifreli key'ler korunur (write-only alanlar).
+        // If either is sent blank/null, the existing encrypted keys are kept (write-only fields).
 
         entity.setSelectedModelIdsJson(objectMapper.writeValueAsString(request.selectedModelIds()));
         entity.setPresidentModelId(request.presidentModelId());
@@ -114,7 +115,7 @@ public class SettingsService {
                 parseModelIds(entity.getSelectedModelIdsJson()), entity.getPresidentModelId());
     }
 
-    /** @return son 4 hane maskelenmiş önizleme, ya da key yoksa {@code null}. */
+    /** @return a preview with the last 4 digits masked, or {@code null} if there's no key. */
     private String maskKey(String encrypted) {
         if (encrypted == null) {
             return null;

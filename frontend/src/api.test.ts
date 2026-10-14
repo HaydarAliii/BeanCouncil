@@ -11,31 +11,31 @@ import {
 import { mockFetchOnce } from './test/fetchMock';
 
 describe('askCouncil', () => {
-  it('POST /api/council/ask ile prompt/threadId/webSearch gönderir ve yanıtı döner', async () => {
-    const fetchMock = mockFetchOnce({ body: { finalAnswer: 'cevap' } });
+  it('sends prompt/threadId/webSearch via POST /api/council/ask and returns the response', async () => {
+    const fetchMock = mockFetchOnce({ body: { finalAnswer: 'answer' } });
 
-    const result = await askCouncil('soru', 7, true);
+    const result = await askCouncil('question', 7, true);
 
-    expect(result).toEqual({ finalAnswer: 'cevap' });
+    expect(result).toEqual({ finalAnswer: 'answer' });
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('/api/council/ask');
     expect(init.method).toBe('POST');
     expect(init.headers).toEqual({ 'Content-Type': 'application/json' });
-    expect(JSON.parse(init.body)).toEqual({ prompt: 'soru', threadId: 7, webSearch: true });
+    expect(JSON.parse(init.body)).toEqual({ prompt: 'question', threadId: 7, webSearch: true });
   });
 
-  it('threadId/webSearch verilmezse varsayılan olarak null/false gönderir', async () => {
+  it('defaults to null/false when threadId/webSearch are not given', async () => {
     const fetchMock = mockFetchOnce({ body: {} });
 
-    await askCouncil('soru');
+    await askCouncil('question');
 
     const [, init] = fetchMock.mock.calls[0];
-    expect(JSON.parse(init.body)).toEqual({ prompt: 'soru', threadId: null, webSearch: false });
+    expect(JSON.parse(init.body)).toEqual({ prompt: 'question', threadId: null, webSearch: false });
   });
 });
 
 describe('getSettings', () => {
-  it('GET /api/settings çağırır ve yanıtı döner', async () => {
+  it('calls GET /api/settings and returns the response', async () => {
     const fetchMock = mockFetchOnce({ body: { hasKey: true } });
 
     const result = await getSettings();
@@ -46,7 +46,7 @@ describe('getSettings', () => {
 });
 
 describe('saveSettings', () => {
-  it('PUT /api/settings ile request gövdesini olduğu gibi gönderir', async () => {
+  it('sends the request body as-is via PUT /api/settings', async () => {
     const fetchMock = mockFetchOnce({ body: { hasKey: true } });
     const request = { selectedModelIds: ['a', 'b'], presidentModelId: 'a' };
 
@@ -60,7 +60,7 @@ describe('saveSettings', () => {
 });
 
 describe('getModels', () => {
-  it('{models:[...]} sarmalayıcısını açıp sadece diziyi döner', async () => {
+  it('unwraps the {models:[...]} wrapper and returns just the array', async () => {
     mockFetchOnce({ body: { models: [{ id: 'a' }, { id: 'b' }] } });
 
     const result = await getModels();
@@ -70,7 +70,7 @@ describe('getModels', () => {
 });
 
 describe('getKeyStatus', () => {
-  it('GET /api/models/key çağırır', async () => {
+  it('calls GET /api/models/key', async () => {
     const fetchMock = mockFetchOnce({ body: { label: 'L' } });
 
     const result = await getKeyStatus();
@@ -81,7 +81,7 @@ describe('getKeyStatus', () => {
 });
 
 describe('getConversations', () => {
-  it('GET /api/conversations çağırır', async () => {
+  it('calls GET /api/conversations', async () => {
     const fetchMock = mockFetchOnce({ body: [] });
 
     await getConversations();
@@ -91,7 +91,7 @@ describe('getConversations', () => {
 });
 
 describe('getConversationDetail', () => {
-  it('threadId ile doğru URL\'i oluşturur', async () => {
+  it('builds the correct URL from threadId', async () => {
     const fetchMock = mockFetchOnce({ body: [] });
 
     await getConversationDetail(42);
@@ -100,32 +100,32 @@ describe('getConversationDetail', () => {
   });
 });
 
-describe('handle() hata gövdesi parse mantığı (tüm fonksiyonlar için ortak)', () => {
-  it('JSON gövdede {error} varsa o mesajı fırlatır', async () => {
-    mockFetchOnce({ status: 428, body: { error: 'Ayarlar henüz yapılandırılmamış.' } });
+describe('handle() error body parsing logic (shared by all functions)', () => {
+  it('throws that message when the JSON body has {error}', async () => {
+    mockFetchOnce({ status: 428, body: { error: 'Settings have not been configured yet.' } });
 
-    await expect(getSettings()).rejects.toThrow('Ayarlar henüz yapılandırılmamış.');
+    await expect(getSettings()).rejects.toThrow('Settings have not been configured yet.');
   });
 
-  it('JSON gövde var ama {error} alanı yoksa fallback + HTTP status mesajı fırlatır', async () => {
+  it('throws fallback + HTTP status message when the JSON body has no {error} field', async () => {
     mockFetchOnce({ status: 500, body: { somethingElse: true } });
 
-    await expect(getSettings()).rejects.toThrow('Ayarlar alınamadı (HTTP 500)');
+    await expect(getSettings()).rejects.toThrow('Could not load settings (HTTP 500)');
   });
 
-  it('gövde JSON değilse parse hatasını yutup fallback + HTTP status mesajı fırlatır', async () => {
+  it('swallows the parse error and throws fallback + HTTP status message when the body is not JSON', async () => {
     mockFetchOnce({ status: 503, jsonThrows: true });
 
-    await expect(getSettings()).rejects.toThrow('Ayarlar alınamadı (HTTP 503)');
+    await expect(getSettings()).rejects.toThrow('Could not load settings (HTTP 503)');
   });
 
-  it('her fonksiyon kendi fallback mesajını kullanır (ör. askCouncil)', async () => {
+  it('each function uses its own fallback message (e.g. askCouncil)', async () => {
     mockFetchOnce({ status: 500, jsonThrows: true });
 
-    await expect(askCouncil('soru')).rejects.toThrow('Konsey isteği başarısız oldu (HTTP 500)');
+    await expect(askCouncil('question')).rejects.toThrow('Council request failed (HTTP 500)');
   });
 
-  it('response.ok ise hata fırlatmadan doğrudan json() sonucunu döner', async () => {
+  it('returns the json() result directly without throwing when response.ok is true', async () => {
     mockFetchOnce({ status: 200, body: { hasKey: false } });
 
     await expect(getSettings()).resolves.toEqual({ hasKey: false });

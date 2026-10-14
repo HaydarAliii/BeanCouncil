@@ -10,10 +10,10 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.util.List;
 
 /**
- * Konsey üyelerini artık startup'ta sabit @Bean'ler olarak değil, kullanıcının kayıtlı ayarlarına
- * (seçili model id'leri + OpenRouter key) göre istek zamanında kurar. Tüm üyeler tek bir sağlayıcı
- * (OpenRouter) üzerinden gider; üyenin kimliği doğrudan OpenRouter model id'sidir (ör.
- * "anthropic/claude-sonnet-5"), böylece transcript ve başkan eşleştirmesi model id üzerinden yapılır.
+ * Builds council members at request time based on the user's saved settings (selected model
+ * ids + OpenRouter key), rather than as fixed @Beans at startup. All members go through a single
+ * provider (OpenRouter); a member's identity is directly its OpenRouter model id (e.g.
+ * "anthropic/claude-sonnet-5"), so transcript and president matching are done by model id.
  */
 @Component
 public class CouncilMemberFactory {
@@ -27,7 +27,7 @@ public class CouncilMemberFactory {
         this.openRouterBaseUrl = openRouterBaseUrl;
     }
 
-    /** Verilen ayarlardaki tüm seçili üyeleri (başkan dahil) kurar. */
+    /** Builds all members selected in the given settings (including the president). */
     public List<LlmProviderAdapter> buildAllMembers(AppSettings settings) {
         return settings.selectedModelIds().stream()
                 .map(modelId -> buildMember(modelId, settings.openRouterKey()))

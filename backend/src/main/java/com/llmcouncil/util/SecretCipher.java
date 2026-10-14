@@ -6,10 +6,10 @@ import org.springframework.security.crypto.encrypt.TextEncryptor;
 import org.springframework.stereotype.Component;
 
 /**
- * Kullanıcının OpenRouter API key'ini DB'de şifreli saklamak için ince bir sarmalayıcı.
- * {@link Encryptors#delux} AES-256-GCM kullanır (her şifrelemede rastgele IV, authenticated) —
- * elle AES/GCM yazmak yerine bunu tercih ediyoruz çünkü IV/tag yönetimini doğru yapıyor.
- * Master key (secret+salt) DB'de DEĞİL, sadece ortam değişkeninden (.env) okunur.
+ * Thin wrapper for storing the user's OpenRouter API key encrypted in the DB.
+ * {@link Encryptors#delux} uses AES-256-GCM (random IV per encryption, authenticated) — we
+ * prefer it over hand-rolling AES/GCM because it handles IV/tag management correctly.
+ * The master key (secret+salt) is read only from an environment variable (.env), NOT from the DB.
  */
 @Component
 public class SecretCipher {
@@ -20,16 +20,16 @@ public class SecretCipher {
                          @Value("${app.crypto.salt}") String salt) {
         if (secret == null || secret.isBlank()) {
             throw new IllegalStateException(
-                    "APP_CRYPTO_SECRET tanımlı değil — .env dosyasına ekleyin (openssl rand -base64 32).");
+                    "APP_CRYPTO_SECRET is not set — add it to your .env file (openssl rand -base64 32).");
         }
         if (salt == null || salt.isBlank()) {
             throw new IllegalStateException(
-                    "APP_CRYPTO_SALT tanımlı değil — .env dosyasına ekleyin (openssl rand -hex 16).");
+                    "APP_CRYPTO_SALT is not set — add it to your .env file (openssl rand -hex 16).");
         }
         this.encryptor = Encryptors.delux(secret, salt);
     }
 
-    /** @return şifrelenmiş metin, ya da {@code null} girişi null/boşsa. */
+    /** @return the encrypted text, or {@code null} if the input is null/blank. */
     public String encrypt(String plaintext) {
         if (plaintext == null || plaintext.isBlank()) {
             return null;
@@ -37,7 +37,7 @@ public class SecretCipher {
         return encryptor.encrypt(plaintext);
     }
 
-    /** @return çözülmüş metin, ya da {@code null} girişi null/boşsa. */
+    /** @return the decrypted text, or {@code null} if the input is null/blank. */
     public String decrypt(String ciphertext) {
         if (ciphertext == null || ciphertext.isBlank()) {
             return null;

@@ -57,7 +57,7 @@ class LegacyConversationMigrationTest {
     @Test
     void oneOrphan_createsThreadWithMatchingTitleAndTimestamps_andLinksConversation() {
         Instant createdAt = Instant.parse("2026-08-03T10:00:00Z");
-        ConversationEntity orphan = orphan("eski soru", createdAt);
+        ConversationEntity orphan = orphan("old question", createdAt);
         when(conversationRepository.findByThreadIdIsNull()).thenReturn(List.of(orphan));
         when(threadRepository.save(any(ConversationThreadEntity.class))).thenAnswer(inv -> {
             ConversationThreadEntity thread = inv.getArgument(0);
@@ -70,20 +70,20 @@ class LegacyConversationMigrationTest {
         ArgumentCaptor<ConversationThreadEntity> threadCaptor = ArgumentCaptor.forClass(ConversationThreadEntity.class);
         verify(threadRepository).save(threadCaptor.capture());
         ConversationThreadEntity savedThread = threadCaptor.getValue();
-        assertThat(savedThread.getTitle()).isEqualTo("eski soru");
+        assertThat(savedThread.getTitle()).isEqualTo("old question");
         assertThat(savedThread.getCreatedAt()).isEqualTo(createdAt);
         assertThat(savedThread.getUpdatedAt()).isEqualTo(createdAt);
 
         verify(conversationRepository).save(orphan);
-        // threadId setter'ın gerçekten yeni thread'in id'siyle çağrıldığını doğrulamak için
-        // ConversationEntity'nin threadId alanını reflection ile okuyoruz (public getter yok).
+        // To confirm the threadId setter was actually called with the new thread's id,
+        // we read ConversationEntity's threadId field via reflection (there's no public getter).
         assertThat(ReflectionTestUtils.getField(orphan, "threadId")).isEqualTo(99L);
     }
 
     @Test
     void multipleOrphans_eachGetsItsOwnThread() {
-        ConversationEntity first = orphan("soru 1", Instant.parse("2026-08-03T10:00:00Z"));
-        ConversationEntity second = orphan("soru 2", Instant.parse("2026-08-03T11:00:00Z"));
+        ConversationEntity first = orphan("question 1", Instant.parse("2026-08-03T10:00:00Z"));
+        ConversationEntity second = orphan("question 2", Instant.parse("2026-08-03T11:00:00Z"));
         when(conversationRepository.findByThreadIdIsNull()).thenReturn(List.of(first, second));
         when(threadRepository.save(any(ConversationThreadEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 

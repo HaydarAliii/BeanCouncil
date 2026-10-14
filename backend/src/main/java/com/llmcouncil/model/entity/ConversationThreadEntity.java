@@ -10,8 +10,8 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * Bir "konuşma" (thread) — içinde birden fazla {@link ConversationEntity} turu olabilir
- * (follow-up sorular). {@code title} thread'in ilk sorusudur, değişmez.
+ * A "conversation" (thread) — can contain multiple {@link ConversationEntity} turns
+ * (follow-up questions). {@code title} is the thread's first question and never changes.
  */
 @Entity
 @Table(name = "conversation_threads")
@@ -61,7 +61,7 @@ public class ConversationThreadEntity {
         this.updatedAt = updatedAt;
     }
 
-    /** Thread'e yeni bir tur eklendiğinde son aktivite zamanını günceller. */
+    /** Updates the last-activity timestamp when a new turn is added to the thread. */
     public void touch() {
         this.updatedAt = Instant.now();
     }

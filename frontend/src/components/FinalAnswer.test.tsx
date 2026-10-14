@@ -4,15 +4,15 @@ import { FinalAnswer } from './FinalAnswer';
 import { buildCouncilResult } from '../test/fixtures';
 
 describe('FinalAnswer', () => {
-  it('başkan rozetini gösterir', () => {
+  it('shows the president badge', () => {
     render(<FinalAnswer result={buildCouncilResult({ presidentProvider: 'anthropic/claude-sonnet-5' })} />);
 
-    expect(screen.getByText('Konsey Başkanı: anthropic/claude-sonnet-5')).toBeInTheDocument();
+    expect(screen.getByText('Council President: anthropic/claude-sonnet-5')).toBeInTheDocument();
   });
 
-  it('finalAnswer markdown içeriğini render eder', () => {
-    render(<FinalAnswer result={buildCouncilResult({ finalAnswer: 'nihai cevap metni' })} />);
+  it('renders the finalAnswer markdown content', () => {
+    render(<FinalAnswer result={buildCouncilResult({ finalAnswer: 'final answer text' })} />);
 
-    expect(screen.getByText('nihai cevap metni')).toBeInTheDocument();
+    expect(screen.getByText('final answer text')).toBeInTheDocument();
   });
 });

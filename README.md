@@ -4,92 +4,92 @@
 
 `spring-boot` · `java` · `react` · `typescript` · `openrouter` · `llm` · `multi-agent` · `postgresql` · `vite` · `docker`
 
-Andrej Karpathy'nin [llm-council](https://github.com/karpathy/llm-council) ve jacob-bd'nin [the-ai-counsel](https://github.com/jacob-bd/the-ai-counsel) projelerinden ilham alan, Java/Spring Boot + React tabanlı çoklu ajan (multi-agent) yapay zeka konsey uygulaması. Orijinal Python/FastAPI mimarisi yerine Spring Boot kullanılıyor. the-ai-counsel'daki gibi **tamamen resmi API'ler** üzerinden çalışır — hiçbir reverse-engineering/key'siz "ücretsiz" servis kullanılmaz. Tek key kaynağı [OpenRouter](https://openrouter.ai): tek bir OpenRouter API key'i ile 400'den fazla modele (OpenAI, Anthropic, Google, xAI ve daha fazlası) resmi şekilde erişilir.
+A multi-agent AI council app built on Java/Spring Boot + React, inspired by Andrej Karpathy's [llm-council](https://github.com/karpathy/llm-council) and jacob-bd's [the-ai-counsel](https://github.com/jacob-bd/the-ai-counsel). Spring Boot replaces the original Python/FastAPI architecture. Like the-ai-counsel, it talks to **only official APIs** — no reverse-engineered or keyless "free" services. The single key source is [OpenRouter](https://openrouter.ai): one OpenRouter API key gives official access to 400+ models (OpenAI, Anthropic, Google, xAI, and more).
 
-Tek kullanıcılık bir araç olarak tasarlandı — çoklu kullanıcı/hesap sistemi veya kullanıcı bazlı kimlik doğrulama yok. Hem yerel geliştirme hem de kendi sunucunda/VPS'inde Docker Compose ile tek-kullanıcılık (Basic Auth korumalı) deploy desteklenir.
+Designed as a single-user tool — no multi-user/account system or per-user auth. Supports both local development and single-user (Basic Auth protected) deployment on your own server/VPS via Docker Compose.
 
-## Mimari
+## Architecture
 
-Konsey mantığı 3 aşamalı bir iş akışı olarak tasarlandı:
+The council logic is a 3-stage pipeline:
 
-1. **First Opinions** — kullanıcı sorusu, başkan hariç tüm seçili konsey üyelerine paralel olarak gönderilir.
-2. **Peer Review** — üyelerin ilk cevapları anonimleştirilir ("Response A/B/..."), her üye diğerlerinin cevabını eleştirir.
-3. **Final Sentez** — **konsey başkanı kendi görüşünü hiç vermez**; sadece diğer üyelerin görüş ve eleştirilerini okuyup nihai cevabı üretir (saf hakem/moderatör rolü).
+1. **First Opinions** — the user's question is sent in parallel to every selected council member except the president.
+2. **Peer Review** — members' first answers are anonymized ("Response A/B/...") and each member critiques the others' answers.
+3. **Final Synthesis** — **the council president never gives its own opinion**; it only reads the other members' opinions and critiques and produces the final answer (a pure judge/moderator role).
 
-Sonuç (ilk görüşler + review'lar + final cevap) DB'ye JSON transcript olarak kaydedilir.
+The result (first opinions + reviews + final answer) is persisted to the DB as a JSON transcript.
 
-Konsey üyeleri ve başkan **kullanıcı tarafından çalışma zamanında seçilir** — koda/config'e gömülü sabit kimlik yoktur:
+Council members and the president are **chosen by the user at runtime** — there's no hardcoded identity baked into code/config:
 
-- Kullanıcı kendi OpenRouter API key'ini uygulamanın **Ayarlar** ekranından girer. Key, backend'de AES-256-GCM ile şifreli olarak tek-satırlık bir `app_settings` tablosunda saklanır; API hiçbir zaman key'i tam haliyle geri döndürmez (sadece "var/yok" + son 4 hane).
-- Ayarlar ekranı OpenRouter'ın güncel model kataloğunu (400+ model) anlık olarak gösterir: her model için ücretsiz/ücretli rozeti, fiyat ve kayıtlı key'in kredi/limit durumu.
-- Kullanıcı istediği modelleri seçip aralarından birini başkan yapar. Üye kimliği doğrudan OpenRouter model id'sidir (ör. `anthropic/claude-sonnet-5`).
-- Hem key hem de model seçimi girilene kadar konsey çalışmaz; backend bu durumda `428 Precondition Required` + açık bir hata mesajı döner (sessizce `500` vermez).
+- The user enters their own OpenRouter API key from the app's **Settings** screen. The key is stored AES-256-GCM encrypted in a single-row `app_settings` table on the backend; the API never returns the full key, only a "present/absent" flag plus the last 4 characters.
+- The Settings screen shows OpenRouter's live model catalog (400+ models) in real time: a free/paid badge, pricing, and the stored key's credit/limit status for each model.
+- The user picks whichever models they want and makes one of them the president. A member's identity is simply its OpenRouter model id (e.g. `anthropic/claude-sonnet-5`).
+- The council won't run until both a key and a model selection are in place; the backend returns `428 Precondition Required` with a clear error message in that case (never a silent `500`).
 
-**Web araştırması (opsiyonel)**: kullanıcı Ayarlar'dan ücretsiz bir [Tavily](https://app.tavily.com/home) key'i de girebilir (yine AES-256-GCM şifreli, write-only). Key kayıtlıysa konsey ekranında "🔍 Web'de ara" seçeneği belirir — işaretlenirse, soru üyelere gönderilmeden önce Tavily'den gelen güncel arama sonuçları bağlam olarak eklenir. Tamamen opsiyoneldir: key yoksa seçenek hiç görünmez; arama API'si hata verirse (geçersiz key, rate limit, ağ sorunu) sessizce atlanır ve konsey normal şekilde cevap üretmeye devam eder — arama hiçbir zaman akışı kesmez.
+**Web search (optional)**: the user can also enter a free [Tavily](https://app.tavily.com/home) key from Settings (also AES-256-GCM encrypted, write-only). Once a key is stored, a "🔍 Search the web" option appears on the council screen — when checked, fresh search results from Tavily are added as context before the question is sent to the members. Fully optional: the option is hidden entirely if there's no key; if the search API errors out (invalid key, rate limit, network issue) it's silently skipped and the council still produces an answer as normal — search never breaks the flow.
 
-Konsey üyeleri ve başkan gibi, konuşmalar da **çok turlu (thread)**: aynı thread'e yeni bir soru sorulduğunda üyeler önceki tur(lar)ı bağlam olarak görür; Geçmiş sekmesinden eski bir konuşma açılıp "Bu konuşmaya devam et" ile kaldığı yerden sürdürülebilir.
+Like council members and the president, conversations are **multi-turn (threaded)**: asking a new question in the same thread lets members see the previous turn(s) as context; an old conversation can be reopened from the History tab and continued from where it left off via "Continue this conversation."
 
-## Proje Yapısı
+## Project Structure
 
 ```
 llmKonsey/
-├── docker-compose.prod.yml   Tam stack (Postgres+backend+frontend), production deploy için
+├── docker-compose.prod.yml   Full stack (Postgres+backend+frontend), for production deploy
 ├── .env.prod.example
 ├── backend/             Spring Boot API
 │   ├── pom.xml
 │   ├── Dockerfile
-│   ├── docker-compose.yml   (sadece Postgres, yerel geliştirme için)
+│   ├── docker-compose.yml   (Postgres only, for local development)
 │   ├── .env.example
 │   └── src/main/java/com/llmcouncil/
-│       ├── adapter/     LlmProviderAdapter, OpenAiCompatibleAdapter (tek, generic OpenRouter adaptörü)
-│       ├── config/      WebClient (timeout + büyük yanıt tamponu dahil)
+│       ├── adapter/     LlmProviderAdapter, OpenAiCompatibleAdapter (a single, generic OpenRouter adapter)
+│       ├── config/      WebClient (including timeout + large response buffer)
 │       ├── controller/  CouncilController, SettingsController, ModelsController, ConversationController
 │       ├── exception/   SettingsNotConfiguredException, OpenRouterUnauthorizedException,
 │       │                ConversationNotFoundException, GlobalExceptionHandler
-│       ├── model/       dto (record) ve JPA entity'leri (AppSettingsEntity, ConversationThreadEntity dahil)
-│       ├── repository/  Spring Data JPA repository'leri
-│       ├── service/     CouncilService (3 aşama + thread/follow-up + web araması bağlamı),
-│       │                CouncilMemberFactory (dinamik üye kurulumu), SettingsService,
+│       ├── model/       dto (records) and JPA entities (including AppSettingsEntity, ConversationThreadEntity)
+│       ├── repository/  Spring Data JPA repositories
+│       ├── service/     CouncilService (the 3-stage pipeline + thread/follow-up + web search context),
+│       │                CouncilMemberFactory (dynamic member construction), SettingsService,
 │       │                OpenRouterCatalogService, WebSearchService (Tavily), ConversationHistoryService,
-│       │                LegacyConversationMigration (eski kayıtları thread'lere taşıyan tek seferlik
-│       │                başlangıç migration'ı)
-│       └── util/        SecretCipher (AES-256-GCM key şifreleme)
-│   └── src/test/java/com/llmcouncil/   51 test — src/main ile aynı paket yapısı (bkz. "Testler")
-└── frontend/             React + Vite + TypeScript arayüzü
-    ├── Dockerfile           (build + nginx ile statik sunum/proxy)
+│       │                LegacyConversationMigration (one-time startup migration that moves legacy
+│       │                records into threads)
+│       └── util/        SecretCipher (AES-256-GCM key encryption)
+│   └── src/test/java/com/llmcouncil/   51 tests — mirrors the src/main package structure (see "Tests")
+└── frontend/             React + Vite + TypeScript UI
+    ├── Dockerfile           (build + static serving/proxy via nginx)
     ├── nginx.conf           (Basic Auth + /api proxy)
-    ├── docker-entrypoint.d/ (container başlarken .htpasswd üretir)
+    ├── docker-entrypoint.d/ (generates .htpasswd on container start)
     └── src/
-        ├── api.ts        Backend ile tip-güvenli iletişim
+        ├── api.ts        Type-safe communication with the backend
         └── components/   PromptForm, FinalAnswer, ProcessDetails, SettingsPage, KeyInputPanel
-                           (OpenRouter+Tavily key girişi ortak bileşeni), ModelPicker, HistoryPage
+                           (shared OpenRouter+Tavily key input component), ModelPicker, HistoryPage
 ```
 
-## Teknoloji Yığını
+## Tech Stack
 
 **Backend**
 - Java 21, Spring Boot 4.1
-- Spring Web (MVC, blocking) + WebClient (sadece dış LLM/OpenRouter çağrıları için, 30sn timeout + 10MB yanıt tamponu ile)
+- Spring Web (MVC, blocking) + WebClient (only for outbound LLM/OpenRouter calls, 30s timeout + 10MB response buffer)
 - Spring Data JPA + PostgreSQL
-- Spring Security Crypto (`Encryptors.delux`, AES-256-GCM) — key şifreleme
+- Spring Security Crypto (`Encryptors.delux`, AES-256-GCM) — key encryption
 - Resilience4j (Retry, RateLimiter)
 - Docker Compose (Postgres)
-- `.env` tabanlı konfigürasyon (spring-dotenv)
+- `.env`-based configuration (spring-dotenv)
 
 **Frontend**
 - React 19 + TypeScript + Vite
-- `react-markdown` + `remark-gfm` (model cevapları markdown içerebiliyor)
-- Dev sunucusunda `/api` istekleri Vite proxy ile backend'e yönlendirilir (CORS gerekmez)
+- `react-markdown` + `remark-gfm` (model answers can contain markdown)
+- On the dev server, `/api` requests are routed to the backend via the Vite proxy (no CORS needed)
 
-## Çalıştırma
+## Running It
 
-Gereksinimler: Java 21+, Maven, Docker Desktop, Node 20+, bir [OpenRouter](https://openrouter.ai/keys) hesabı/key'i (ücretsiz oluşturulur, kart istemez).
+Requirements: Java 21+, Maven, Docker Desktop, Node 20+, an [OpenRouter](https://openrouter.ai/keys) account/key (free to create, no card required).
 
 ```bash
 # Backend
 cd backend
 cp .env.example .env
-# APP_CRYPTO_SECRET / APP_CRYPTO_SALT üret ve .env'e yapıştır:
+# Generate APP_CRYPTO_SECRET / APP_CRYPTO_SALT and paste into .env:
 openssl rand -base64 32   # -> APP_CRYPTO_SECRET
 openssl rand -hex 16      # -> APP_CRYPTO_SALT
 docker compose up -d      # Postgres
@@ -97,72 +97,72 @@ mvn spring-boot:run
 ```
 
 ```bash
-# Frontend (ayrı terminalde)
+# Frontend (separate terminal)
 cd frontend
 npm install
-npm run dev                 # http://localhost:5173 (port doluysa Vite otomatik sonraki boş portu seçer)
+npm run dev                 # http://localhost:5173 (if the port is taken, Vite picks the next free one)
 ```
 
-Tarayıcıda uygulamayı açtığında henüz ayar yapılmamışsa otomatik olarak **Ayarlar** sekmesine yönlendirilirsin: OpenRouter key'ini gir, listeden en az 2 model seç, birini başkan yap, kaydet. Bundan sonra **Konsey** sekmesinden soru sorabilirsin.
+When you open the app in the browser and nothing's configured yet, you're automatically redirected to the **Settings** tab: enter your OpenRouter key, pick at least 2 models from the list, make one of them president, and save. After that you can ask questions from the **Council** tab.
 
-API'yi doğrudan test etmek için (ayarlar zaten yapılmışsa):
+To test the API directly (assuming settings are already configured):
 
 ```bash
 curl -X POST http://localhost:8080/api/council/ask \
   -H "Content-Type: application/json" \
-  -d '{"prompt":"merhaba"}'
+  -d '{"prompt":"hello"}'
 ```
 
-**Not**: OpenRouter'ın `:free` etiketli modelleri (400+ model içinden ~20 tanesi) tamamen ücretsizdir ama paylaşımlı havuzları zaman zaman rate-limit'e takılabilir. Büyük/isimli modeller (gpt, claude, gemini, grok ailesi) OpenRouter'da hep ücretlidir — bunları kullanmak için hesabına kredi yüklemen gerekir.
+**Note**: OpenRouter's `:free`-tagged models (~20 out of 400+) are completely free, but their shared pools can occasionally hit rate limits. Big-name models (gpt, claude, gemini, grok families) are always paid on OpenRouter — using them requires loading credit onto your account.
 
-### Testler
+### Tests
 
 ```bash
 cd backend
 mvn test
 ```
 
-51 test, tamamı ~1 saniyede, **Docker/Postgres/`.env` olmadan** yeşil döner — hiçbiri Spring context başlatmıyor; en kritik mantık (`CouncilService`: başkan tarafsızlığı, follow-up bağlamı, web arama entegrasyonu, hata durumlarında zarif bozulma) saf Mockito ile, dış HTTP yapan 3 sınıf (`OpenAiCompatibleAdapter`, `OpenRouterCatalogService`, `WebSearchService`) MockWebServer ile gerçek ağa çıkmadan test ediliyor. JPA/repository entegrasyon testleri (Testcontainers) henüz kapsam dışı.
+51 tests, all finishing in ~1 second, pass **without Docker/Postgres/`.env`** — none of them start a Spring context. The most critical logic (`CouncilService`: president neutrality, follow-up context, web search integration, graceful degradation on failures) is tested with pure Mockito; the 3 classes that make outbound HTTP calls (`OpenAiCompatibleAdapter`, `OpenRouterCatalogService`, `WebSearchService`) are tested against MockWebServer without touching the real network. JPA/repository integration tests (Testcontainers) are not yet in scope.
 
 ```bash
 cd frontend
 npm test
 ```
 
-53 test (vitest + React Testing Library, jsdom üzerinde, tarayıcı/network gerektirmeden ~2 saniyede yeşil döner): `api.ts`'teki hata-parse sözleşmesi, `SettingsPage`/`App`'in state makinesi (view routing, save sonrası key input'larının boşaltılması, thread sürekliliği), ve bu projede gerçekten yaşanmış bir regresyonun koruması — `webSearchResults` boşken "Süreci göster" altındaki web araması bölümünün hiç render olmaması. Component testleri `../api` modülünü bir sınır olarak mock'lar; sadece `api.test.ts` gerçek `fetch` çağrısını stub'lar.
+53 tests (vitest + React Testing Library, on jsdom, passing in ~2 seconds with no browser/network needed): the error-parsing contract in `api.ts`, the `SettingsPage`/`App` state machines (view routing, clearing key inputs after save, thread continuity), and a regression guard for a bug that actually happened in this project — the "web search" section under "Show process" must not render at all when `webSearchResults` is empty. Component tests mock the `../api` module as a boundary; only `api.test.ts` stubs the real `fetch` call.
 
-`.github/workflows/ci.yml`, her push/PR'da `main`'e iki job çalıştırır: backend (`mvn test`) ve frontend (`npm run lint` + `npm test` + `npm run build`, tip kontrolü dahil) — ikisi de ek servis gerektirmez.
+`.github/workflows/ci.yml` runs two jobs on every push/PR to `main`: backend (`mvn test`) and frontend (`npm run lint` + `npm test` + `npm run build`, including type checking) — neither needs extra services.
 
-## Deploy (Docker Compose ile kendi sunucunda/VPS'inde)
+## Deploy (Docker Compose on your own server/VPS)
 
-Kökteki `docker-compose.prod.yml`, uygulamanın tamamını (Postgres + backend + frontend) tek komutla ayağa kaldırır. Backend ve Postgres'in portları **dışarıya hiç açılmaz** — internete sadece frontend'in nginx'i, o da **Basic Auth şifre koruması** arkasında açılır (sunucu internete açık olacağı için, başkasının senin OpenRouter/Tavily kredini kullanmasını engellemek amacıyla). `/api` istekleri nginx tarafından aynı origin üzerinden backend'e proxy'lenir — ayrı bir host olmadığı için CORS hiç gerekmez.
+The root-level `docker-compose.prod.yml` brings up the entire app (Postgres + backend + frontend) with one command. The backend's and Postgres's ports are **never exposed externally** — only the frontend's nginx is exposed to the internet, and it sits behind **Basic Auth password protection** (since the server is internet-facing, this stops anyone else from spending your OpenRouter/Tavily credit). `/api` requests are proxied to the backend by nginx on the same origin, so CORS is never needed.
 
 ```bash
 cp .env.prod.example .env.prod
-# .env.prod'u doldur:
+# Fill in .env.prod:
 openssl rand -base64 32   # -> APP_CRYPTO_SECRET
 openssl rand -hex 16      # -> APP_CRYPTO_SALT
-# POSTGRES_PASSWORD, APP_AUTH_USERNAME, APP_AUTH_PASSWORD de gir (dev varsayılanlarını kullanma)
+# Also set POSTGRES_PASSWORD, APP_AUTH_USERNAME, APP_AUTH_PASSWORD (don't use the dev defaults)
 
 docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
 ```
 
-Sunucunun `APP_PORT` ile belirttiğin porttan (varsayılan 80) tarayıcıyla açtığında Basic Auth ekranı karşına çıkar — `APP_AUTH_USERNAME`/`APP_AUTH_PASSWORD` ile giriş yaptıktan sonra uygulamanın kendisi görünür. HTTPS bu compose'un kapsamında değil — eğer bir alan adın varsa önüne Caddy/nginx/Cloudflare Tunnel gibi bir ters proxy koyup TLS'i ona bırakman yeterli (`frontend` servisi sadece HTTP dinler).
+Opening the server in a browser on the port you set via `APP_PORT` (default 80) brings up a Basic Auth prompt — after logging in with `APP_AUTH_USERNAME`/`APP_AUTH_PASSWORD`, the app itself appears. HTTPS is out of scope for this compose setup — if you have a domain, put a reverse proxy like Caddy/nginx/Cloudflare Tunnel in front and let it handle TLS (the `frontend` service only listens on HTTP).
 
-Tam yerel doğrulama yapıldı: `docker compose ... build` her iki imajı da başarıyla üretiyor, container'lar ayağa kalkıyor, backend Postgres'e `postgres` servis adıyla (container ağı üzerinden) bağlanıyor, Basic Auth'suz istekler `401`, doğru şifreyle hem statik sayfa hem `/api/*` proxy'si `200` dönüyor.
+Fully verified locally: `docker compose ... build` produces both images successfully, the containers come up, the backend connects to Postgres via the `postgres` service name (over the container network), requests without Basic Auth get `401`, and with the correct credentials both the static page and the `/api/*` proxy return `200`.
 
-## Mevcut Durum
+## Current Status
 
-- ✅ Çalışıyor: 3 aşamalı konsey akışı uçtan uca (first opinions → peer review → final sentez), başkan ilk görüş/review aşamalarına katılmadan saf hakem olarak sentez yapıyor
-- ✅ Çalışıyor: kullanıcı kendi OpenRouter key'ini girip DB'de şifreli saklıyor, modelleri/başkanı Ayarlar ekranından serbestçe seçiyor
-- ✅ Çalışıyor: Ayarlar ekranında canlı model kataloğu (ücretsiz/ücretli rozeti, fiyat, kredi/limit durumu)
-- ✅ Çalışıyor: sonuçların DB'ye tam transcript olarak kaydedilmesi
-- ✅ Çalışıyor: React frontend — Konsey/Ayarlar/Geçmiş sekmeleri, soru sor, final cevabı gör, "Süreci göster" ile ara aşamaları incele
-- ✅ Çalışıyor: konuşma geçmişi — thread'ler listelenir, herhangi birine tıklayınca içindeki tüm turlar (ilk görüşler, review'lar, final cevap) sırayla tekrar görüntülenir; eski mimari dönemlerden (g4f, sabit kimlikler) kalan kayıtlar da uygulama ilk açıldığında otomatik olarak kendi thread'lerine taşınıp geriye dönük uyumlu şekilde açılır
-- ✅ Çalışıyor: çok turlu (follow-up) konuşmalar — aynı thread'e yeni bir soru sorulduğunda konsey üyeleri önceki tur(lar)ı bağlam olarak görür; geçmişten de bir konuşmaya "devam et" ile kaldığı yerden sürdürülebilir
-- ✅ Çalışıyor: opsiyonel web araştırması (Tavily) — "Web'de ara" işaretlenince üyeler güncel arama sonuçlarını bağlam olarak görür; key yoksa veya arama başarısız olursa konsey sessizce aramasız devam eder, hiçbir zaman çökmez
-- ✅ Çalışıyor: production deploy — `docker-compose.prod.yml` ile tek komutla Postgres+backend+frontend; backend/Postgres dışa kapalı, frontend Basic Auth arkasında, CORS'a gerek yok (aynı origin proxy)
-- ✅ Çalışıyor: backend test suite — 51 test (`CouncilService`, `SettingsService`, `SecretCipher`, `LegacyConversationMigration`, `ConversationHistoryService` saf Mockito; `OpenAiCompatibleAdapter`/`OpenRouterCatalogService`/`WebSearchService` MockWebServer ile HTTP sözleşme testi), Docker'sız `mvn test` ile ~1sn'de yeşil
-- ✅ Çalışıyor: frontend test suite — 53 test (vitest/testing-library), `../api` sınırında mock'lanmış component/state testleri, Docker'sız `npm test` ile ~2sn'de yeşil
-- ✅ Çalışıyor: CI (GitHub Actions) — her push/PR'da backend testleri + frontend lint/test/build otomatik çalışıyor
-- ❌ Henüz yok: Testcontainers ile JPA/entegrasyon testleri, Ollama desteği, otomatik HTTPS (TLS bilinçli olarak kapsam dışı — kullanıcı kendi ters proxy'sini koyar)
+- ✅ Working: the 3-stage council pipeline end-to-end (first opinions → peer review → final synthesis), with the president synthesizing as a pure judge without taking part in the opinion/review stages
+- ✅ Working: the user enters their own OpenRouter key and it's stored encrypted in the DB; models/president are freely chosen from the Settings screen
+- ✅ Working: live model catalog on the Settings screen (free/paid badge, pricing, credit/limit status)
+- ✅ Working: results persisted to the DB as a full transcript
+- ✅ Working: React frontend — Council/Settings/History tabs, ask a question, see the final answer, inspect the intermediate stages via "Show process"
+- ✅ Working: conversation history — threads are listed, and clicking one replays every turn inside it in order (first opinions, reviews, final answer); records left over from earlier architecture eras (g4f, hardcoded identities) are automatically migrated into their own threads on first app startup and open in a backward-compatible way
+- ✅ Working: multi-turn (follow-up) conversations — asking a new question in the same thread lets council members see the previous turn(s) as context; a past conversation can also be "continued" from History right where it left off
+- ✅ Working: optional web search (Tavily) — checking "Search the web" lets members see fresh search results as context; if there's no key or the search fails, the council silently continues without it and never crashes
+- ✅ Working: production deploy — `docker-compose.prod.yml` brings up Postgres+backend+frontend with one command; backend/Postgres are closed off externally, frontend sits behind Basic Auth, no CORS needed (same-origin proxy)
+- ✅ Working: backend test suite — 51 tests (`CouncilService`, `SettingsService`, `SecretCipher`, `LegacyConversationMigration`, `ConversationHistoryService` via pure Mockito; `OpenAiCompatibleAdapter`/`OpenRouterCatalogService`/`WebSearchService` via MockWebServer HTTP contract tests), passing in ~1s via `mvn test` with no Docker
+- ✅ Working: frontend test suite — 53 tests (vitest/testing-library), component/state tests mocked at the `../api` boundary, passing in ~2s via `npm test` with no Docker
+- ✅ Working: CI (GitHub Actions) — backend tests + frontend lint/test/build run automatically on every push/PR
+- ❌ Not yet: JPA/integration tests via Testcontainers, Ollama support, automatic HTTPS (TLS is intentionally out of scope — bring your own reverse proxy)

@@ -12,13 +12,13 @@ import java.time.Duration;
 public class WebClientConfig {
 
     /**
-     * Reverse API sağlayıcıları (özellikle g4f) bazen hiç yanıt vermeden asılı kalabilir;
-     * bu sınır olmadan istek sonsuza kadar bekler. @Retry/@RateLimiter'ın devreye girebilmesi
-     * için tüm sağlayıcı çağrılarına ortak bir üst sınır konur.
+     * Reverse API providers (g4f in particular) can sometimes hang without ever responding;
+     * without this limit the request would wait forever. A shared upper bound is applied to
+     * every provider call so that @Retry/@RateLimiter actually get a chance to kick in.
      */
     private static final Duration RESPONSE_TIMEOUT = Duration.ofSeconds(30);
 
-    /** Spring'in varsayılan 256KB bellek-içi tampon sınırı OpenRouter'ın /models yanıtı (464+ model) için yetersiz. */
+    /** Spring's default 256KB in-memory buffer limit isn't enough for OpenRouter's /models response (464+ models). */
     private static final int MAX_IN_MEMORY_SIZE = 10 * 1024 * 1024;
 
     @Bean
@@ -30,10 +30,11 @@ public class WebClientConfig {
     }
 
     /**
-     * Paylaşımlı {@code webClientBuilder} bean'inden, verilen base URL'e ve (varsa) Bearer token'a
-     * sahip tek kullanımlık bir {@link WebClient} kurar. {@code clone()} olmadan baseUrl/header
-     * çağrıları paylaşımlı builder'ı yerinde mutate edip diğer tüm kullanımları etkiler — bu yüzden
-     * her çağrıda önce klonlanır. {@code bearerToken} null/boşsa Authorization header hiç eklenmez.
+     * Builds a single-use {@link WebClient} from the shared {@code webClientBuilder} bean, pointed
+     * at the given base URL with a Bearer token if one is supplied. Without {@code clone()}, the
+     * baseUrl/header calls would mutate the shared builder in place and affect every other caller —
+     * so it's cloned first on every call. If {@code bearerToken} is null/blank, no Authorization
+     * header is added at all.
      */
     public static WebClient authenticatedClient(WebClient.Builder sharedBuilder, String baseUrl, String bearerToken) {
         WebClient.Builder builder = sharedBuilder.clone().baseUrl(baseUrl);

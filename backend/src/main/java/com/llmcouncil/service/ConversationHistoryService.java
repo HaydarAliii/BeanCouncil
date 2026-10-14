@@ -12,9 +12,10 @@ import tools.jackson.databind.ObjectMapper;
 import java.util.List;
 
 /**
- * Geçmişteki konuşma thread'lerini listeler/detaylandırır. Detay, her turun {@code transcript}
- * kolonuna yazılmış tam {@link CouncilResult} JSON'ını geri çözer — konsey akışıyla aynı DTO
- * olduğu için frontend'deki FinalAnswer/ProcessDetails bileşenleri aynen yeniden kullanılabilir.
+ * Lists/details past conversation threads. The detail view deserializes the full
+ * {@link CouncilResult} JSON written to each turn's {@code transcript} column — since it's the
+ * same DTO the live council flow uses, the frontend's FinalAnswer/ProcessDetails components can
+ * be reused as-is.
  */
 @Service
 public class ConversationHistoryService {
@@ -37,13 +38,13 @@ public class ConversationHistoryService {
                 .toList();
     }
 
-    /** @return thread'deki tüm turlar, eskiden yeniye sıralı. */
+    /** @return all turns in the thread, ordered oldest to newest. */
     public List<CouncilResult> getThreadTurns(Long threadId) {
         List<CouncilResult> turns = conversationRepository.findByThreadIdOrderByCreatedAtAsc(threadId).stream()
                 .map(entity -> objectMapper.readValue(entity.getTranscript(), CouncilResult.class))
                 .toList();
         if (turns.isEmpty()) {
-            throw new ConversationNotFoundException("Konuşma bulunamadı: " + threadId);
+            throw new ConversationNotFoundException("Conversation not found: " + threadId);
         }
         return turns;
     }

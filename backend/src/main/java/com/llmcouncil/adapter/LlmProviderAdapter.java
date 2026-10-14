@@ -5,8 +5,8 @@ import com.llmcouncil.model.dto.LlmResponse;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Her LLM sağlayıcısının (Groq, Gemini, Reverse API, ...) implemente etmesi gereken ortak sözleşme.
- * Konsey servisi, kayıtlı tüm implementasyonları bu tip üzerinden çağırır (Strategy pattern).
+ * Common contract every LLM provider (Groq, Gemini, reverse API, ...) must implement.
+ * The council service calls all registered implementations through this type (Strategy pattern).
  */
 public interface LlmProviderAdapter {
 

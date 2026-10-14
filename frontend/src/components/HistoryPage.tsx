@@ -21,7 +21,7 @@ export function HistoryPage({ onContinue }: HistoryPageProps) {
   useEffect(() => {
     getConversations()
       .then(setConversations)
-      .catch((err) => setError(err instanceof Error ? err.message : 'Geçmiş alınamadı.'))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Could not load history.'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -33,7 +33,7 @@ export function HistoryPage({ onContinue }: HistoryPageProps) {
     try {
       setTurns(await getConversationDetail(id));
     } catch (err) {
-      setDetailError(err instanceof Error ? err.message : 'Konuşma alınamadı.');
+      setDetailError(err instanceof Error ? err.message : 'Could not load conversation.');
     } finally {
       setDetailLoading(false);
     }
@@ -44,15 +44,15 @@ export function HistoryPage({ onContinue }: HistoryPageProps) {
       <div className="history-page">
         <div className="history-detail-header">
           <button className="history-back-button" onClick={() => setSelectedId(null)}>
-            ← Geçmişe dön
+            ← Back to history
           </button>
           {turns && (
             <button className="history-continue-button" onClick={() => onContinue(selectedId, turns)}>
-              Bu konuşmaya devam et →
+              Continue this conversation →
             </button>
           )}
         </div>
-        {detailLoading && <p className="settings-hint">Yükleniyor...</p>}
+        {detailLoading && <p className="settings-hint">Loading...</p>}
         {detailError && <p className="error-text">{detailError}</p>}
         {turns?.map((turn, index) => (
           <div className="conversation-turn" key={index}>
@@ -64,10 +64,10 @@ export function HistoryPage({ onContinue }: HistoryPageProps) {
     );
   }
 
-  if (loading) return <p className="settings-hint">Geçmiş yükleniyor...</p>;
+  if (loading) return <p className="settings-hint">Loading history...</p>;
   if (error) return <p className="error-text">{error}</p>;
   if (conversations.length === 0) {
-    return <p className="settings-hint">Henüz hiç soru sorulmamış.</p>;
+    return <p className="settings-hint">No questions asked yet.</p>;
   }
 
   return (
@@ -78,8 +78,8 @@ export function HistoryPage({ onContinue }: HistoryPageProps) {
             <button className="history-item" onClick={() => openConversation(c.id)}>
               <span className="history-item-prompt">{c.title}</span>
               <span className="history-item-date">
-                {new Date(c.updatedAt).toLocaleString('tr-TR')}
-                {c.turnCount > 1 ? ` · ${c.turnCount} tur` : ''}
+                {new Date(c.updatedAt).toLocaleString('en-US')}
+                {c.turnCount > 1 ? ` · ${c.turnCount} turns` : ''}
               </span>
             </button>
           </li>

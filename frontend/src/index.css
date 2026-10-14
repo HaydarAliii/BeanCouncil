@@ -217,8 +217,8 @@ h4 {
 
 .opinion-grid {
   display: grid;
-  /* minmax(0, 1fr) olmadan grid sütunu, içindeki en uzun boşluksuz token'a (ör. model id,
-     kod satırı) göre otomatik genişler ve tüm sayfayı taşırır (.app'in max-width'ini aşar). */
+  /* Without minmax(0, 1fr), the grid column auto-grows to fit its longest unbreakable token
+     (e.g. a model id, a code line) and overflows the whole page (busts .app's max-width). */
   grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   margin-bottom: 24px;
@@ -274,7 +274,7 @@ h4 {
   font-size: 14px;
 }
 
-/* --- Ayarlar sayfası --- */
+/* --- Settings page --- */
 
 .settings-page {
   display: flex;
@@ -407,7 +407,7 @@ h4 {
   padding: 10px 14px;
 }
 
-/* --- Geçmiş sayfası --- */
+/* --- History page --- */
 
 .history-page {
   margin-top: 24px;
@@ -474,7 +474,7 @@ h4 {
   cursor: pointer;
 }
 
-/* --- Çok turlu konuşma (follow-up) --- */
+/* --- Multi-turn conversation (follow-up) --- */
 
 .new-conversation-button {
   font: inherit;

@@ -10,7 +10,7 @@ type KeyInputPanelProps = {
   emptyPlaceholder: string;
 };
 
-/** OpenRouter ve Tavily key girişleri aynı yapıyı paylaşır — tek bileşende birleştirildi. */
+/** OpenRouter and Tavily key inputs share the same structure — merged into a single component. */
 export function KeyInputPanel({
   title,
   description,
@@ -26,12 +26,12 @@ export function KeyInputPanel({
       <p className="settings-hint">{description}</p>
       {hasKey && (
         <p className="key-status">
-          Kayıtlı key: <code>{keyPreview}</code> — değiştirmek için aşağıya yeni bir key gir.
+          Saved key: <code>{keyPreview}</code> — enter a new key below to change it.
         </p>
       )}
       <input
         type="password"
-        placeholder={hasKey ? 'Değiştirmek için yeni key gir (opsiyonel)' : emptyPlaceholder}
+        placeholder={hasKey ? 'Enter a new key to change it (optional)' : emptyPlaceholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         autoComplete="off"

@@ -13,6 +13,6 @@ public interface ConversationRepository extends JpaRepository<ConversationEntity
 
     long countByThreadId(Long threadId);
 
-    /** Follow-up özelliğinden önce kaydedilmiş, henüz bir thread'e taşınmamış turlar. */
+    /** Turns saved before the follow-up feature existed, not yet migrated to a thread. */
     List<ConversationEntity> findByThreadIdIsNull();
 }

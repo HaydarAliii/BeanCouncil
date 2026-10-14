@@ -13,9 +13,9 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * Follow-up/thread özelliği eklenmeden önce kaydedilmiş konuşmaların {@code threadId}'si null'dır.
- * Uygulama her başladığında bu turları kendi tek-turluk thread'lerine taşır (idempotent —
- * bir kere taşınan satır bir daha {@code findByThreadIdIsNull()} ile dönmez).
+ * Conversations saved before the follow-up/thread feature was added have a null {@code threadId}.
+ * On every application startup, these turns are migrated into their own single-turn threads
+ * (idempotent — once a row is migrated it no longer shows up via {@code findByThreadIdIsNull()}).
  */
 @Component
 public class LegacyConversationMigration implements ApplicationRunner {

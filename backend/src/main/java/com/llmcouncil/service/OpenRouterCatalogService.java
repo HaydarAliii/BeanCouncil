@@ -15,8 +15,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * OpenRouter'ın {@code /models} (katalog, public) ve {@code /key} (kayıtlı key'in kredi/limit
- * durumu) endpoint'lerini frontend'in model seçici ekranı için sadeleştirip proxy'ler.
+ * Simplifies and proxies OpenRouter's {@code /models} (public catalog) and {@code /key}
+ * (configured key's credit/limit status) endpoints for the frontend's model picker screen.
  */
 @Service
 public class OpenRouterCatalogService {
@@ -50,7 +50,7 @@ public class OpenRouterCatalogService {
     @SuppressWarnings("unchecked")
     public KeyStatus keyStatus() {
         String key = settingsService.getDecryptedKey()
-                .orElseThrow(() -> new SettingsNotConfiguredException("OpenRouter key girilmemiş. Lütfen Ayarlar'dan ekleyin."));
+                .orElseThrow(() -> new SettingsNotConfiguredException("OpenRouter key is not set. Please add it in Settings."));
 
         Map<String, Object> body;
         try {
@@ -60,7 +60,7 @@ public class OpenRouterCatalogService {
                     .bodyToMono(Map.class)
                     .block(TIMEOUT);
         } catch (WebClientResponseException.Unauthorized ex) {
-            throw new OpenRouterUnauthorizedException("Kayıtlı OpenRouter key geçersiz veya süresi dolmuş.");
+            throw new OpenRouterUnauthorizedException("The configured OpenRouter key is invalid or has expired.");
         }
 
         Map<String, Object> data = (Map<String, Object>) body.get("data");
@@ -99,7 +99,7 @@ public class OpenRouterCatalogService {
         return value instanceof Number number ? number.doubleValue() : null;
     }
 
-    /** OpenRouter'a tek seferlik, request-scope'lu bir client. key null ise Authorization header eklenmez (public /models için yeterli). */
+    /** A single-use, request-scoped client for OpenRouter. If key is null, no Authorization header is added (fine for public /models). */
     private WebClient client(String key) {
         return WebClientConfig.authenticatedClient(webClientBuilder, baseUrl, key);
     }

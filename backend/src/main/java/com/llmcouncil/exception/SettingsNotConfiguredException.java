@@ -1,6 +1,6 @@
 package com.llmcouncil.exception;
 
-/** OpenRouter key henüz girilmemiş veya konsey üyesi seçilmemişken konsey/model işlemleri çağrılırsa fırlatılır. */
+/** Thrown when a council/model operation is called before an OpenRouter key has been entered or any council members selected. */
 public class SettingsNotConfiguredException extends RuntimeException {
 
     public SettingsNotConfiguredException(String message) {

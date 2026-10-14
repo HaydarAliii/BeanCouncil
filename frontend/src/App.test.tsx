@@ -28,99 +28,99 @@ function settingsResponse(overrides: Partial<api.SettingsResponse> = {}): api.Se
 }
 
 beforeEach(() => {
-  // App'in kendi view-routing/turns state makinesini test ediyoruz. view settings/history'ye
-  // geçerse çocuk component'lerin (SettingsPage/HistoryPage) kendi api çağrıları zararsız
-  // varsayılanlarla tamamlansın diye (detayları kendi test dosyalarında zaten kapsandı).
+  // We're testing App's own view-routing/turns state machine. If the view switches to
+  // settings/history, let the child components' (SettingsPage/HistoryPage) own api calls
+  // resolve with harmless defaults (already covered in detail in their own test files).
   vi.mocked(api.getModels).mockResolvedValue([]);
   vi.mocked(api.getConversations).mockResolvedValue([]);
 });
 
 describe('App', () => {
-  it('ayarlar hazır değilse (hasKey=false) mount\'ta Ayarlar görünümüne yönlendirir', async () => {
+  it('redirects to the Settings view on mount if settings are not ready (hasKey=false)', async () => {
     vi.mocked(api.getSettings).mockResolvedValue(settingsResponse({ hasKey: false, keyPreview: null }));
 
     render(<App />);
 
     expect(await screen.findByText('OpenRouter API Key')).toBeInTheDocument();
-    expect(screen.queryByText(/Sorunu birden fazla AI modeline sor/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Ask one question to multiple AI models/)).not.toBeInTheDocument();
   });
 
-  it("ayarlar hazırsa Konsey görünümünde kalır, webSearchAvailable hasTavilyKey'i yansıtır", async () => {
+  it('stays on the Council view when settings are ready, webSearchAvailable reflects hasTavilyKey', async () => {
     vi.mocked(api.getSettings).mockResolvedValue(settingsResponse({ hasTavilyKey: true }));
 
     render(<App />);
 
-    expect(await screen.findByText(/Sorunu birden fazla AI modeline sor/)).toBeInTheDocument();
-    expect(screen.getByRole('checkbox')).toBeInTheDocument(); // web'de ara seçeneği görünür
+    expect(await screen.findByText(/Ask one question to multiple AI models/)).toBeInTheDocument();
+    expect(screen.getByRole('checkbox')).toBeInTheDocument(); // the "search the web" option is visible
   });
 
-  it('getSettings reddedilirse configured=false olur, Konsey görünümünde uyarı gösterilir', async () => {
-    vi.mocked(api.getSettings).mockRejectedValue(new Error('ağ hatası'));
+  it('sets configured=false if getSettings is rejected, shows a warning on the Council view', async () => {
+    vi.mocked(api.getSettings).mockRejectedValue(new Error('network error'));
 
     render(<App />);
 
-    expect(await screen.findByText(/Henüz yapılandırma tamamlanmadı/)).toBeInTheDocument();
+    expect(await screen.findByText(/Setup isn't finished yet/)).toBeInTheDocument();
   });
 
-  it('prompt gönderimi askCouncil çağırır ve bir tur ekler', async () => {
+  it('submitting a prompt calls askCouncil and adds a turn', async () => {
     vi.mocked(api.getSettings).mockResolvedValue(settingsResponse());
     vi.mocked(api.askCouncil).mockResolvedValue(buildCouncilResult({ presidentProvider: 'model-x', threadId: 5 }));
 
     render(<App />);
-    await screen.findByText(/Sorunu birden fazla AI modeline sor/);
+    await screen.findByText(/Ask one question to multiple AI models/);
 
-    await userEvent.type(screen.getByPlaceholderText('Konseye sormak istediğin soruyu yaz...'), 'soru');
-    await userEvent.click(screen.getByRole('button', { name: 'Konseye Sor' }));
+    await userEvent.type(screen.getByPlaceholderText('Write the question you want to ask the council...'), 'question');
+    await userEvent.click(screen.getByRole('button', { name: 'Ask Council' }));
 
-    expect(await screen.findByText('Konsey Başkanı: model-x')).toBeInTheDocument();
-    expect(api.askCouncil).toHaveBeenCalledWith('soru', null, false);
+    expect(await screen.findByText('Council President: model-x')).toBeInTheDocument();
+    expect(api.askCouncil).toHaveBeenCalledWith('question', null, false);
   });
 
-  it('askCouncil hatası error-text gösterir, tur eklenmez', async () => {
+  it('shows error-text on askCouncil failure, no turn is added', async () => {
     vi.mocked(api.getSettings).mockResolvedValue(settingsResponse());
-    vi.mocked(api.askCouncil).mockRejectedValue(new Error('Konsey isteği başarısız oldu (HTTP 500)'));
+    vi.mocked(api.askCouncil).mockRejectedValue(new Error('Council request failed (HTTP 500)'));
 
     render(<App />);
-    await screen.findByText(/Sorunu birden fazla AI modeline sor/);
+    await screen.findByText(/Ask one question to multiple AI models/);
 
-    await userEvent.type(screen.getByPlaceholderText('Konseye sormak istediğin soruyu yaz...'), 'soru');
-    await userEvent.click(screen.getByRole('button', { name: 'Konseye Sor' }));
+    await userEvent.type(screen.getByPlaceholderText('Write the question you want to ask the council...'), 'question');
+    await userEvent.click(screen.getByRole('button', { name: 'Ask Council' }));
 
-    expect(await screen.findByText('Konsey isteği başarısız oldu (HTTP 500)')).toBeInTheDocument();
-    expect(screen.queryByText(/Konsey Başkanı/)).not.toBeInTheDocument();
+    expect(await screen.findByText('Council request failed (HTTP 500)')).toBeInTheDocument();
+    expect(screen.queryByText(/Council President/)).not.toBeInTheDocument();
   });
 
-  it('"+ Yeni konuşma" turları ve threadId\'yi sıfırlar', async () => {
-    vi.mocked(api.getSettings).mockResolvedValue(settingsResponse());
-    vi.mocked(api.askCouncil).mockResolvedValue(buildCouncilResult({ presidentProvider: 'model-x', threadId: 5 }));
-
-    render(<App />);
-    await screen.findByText(/Sorunu birden fazla AI modeline sor/);
-    await userEvent.type(screen.getByPlaceholderText('Konseye sormak istediğin soruyu yaz...'), 'soru');
-    await userEvent.click(screen.getByRole('button', { name: 'Konseye Sor' }));
-    await screen.findByText('Konsey Başkanı: model-x');
-
-    await userEvent.click(screen.getByRole('button', { name: '+ Yeni konuşma' }));
-
-    expect(screen.queryByText('Konsey Başkanı: model-x')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: '+ Yeni konuşma' })).not.toBeInTheDocument();
-  });
-
-  it('ikinci gönderim önceki turdan dönen threadId\'yi askCouncil\'e geçirir (thread sürekliliği)', async () => {
+  it('"+ New conversation" resets turns and threadId', async () => {
     vi.mocked(api.getSettings).mockResolvedValue(settingsResponse());
     vi.mocked(api.askCouncil).mockResolvedValue(buildCouncilResult({ presidentProvider: 'model-x', threadId: 5 }));
 
     render(<App />);
-    await screen.findByText(/Sorunu birden fazla AI modeline sor/);
+    await screen.findByText(/Ask one question to multiple AI models/);
+    await userEvent.type(screen.getByPlaceholderText('Write the question you want to ask the council...'), 'question');
+    await userEvent.click(screen.getByRole('button', { name: 'Ask Council' }));
+    await screen.findByText('Council President: model-x');
 
-    const textarea = () => screen.getByPlaceholderText(/sormak istediğin soruyu yaz|Takip sorunu yaz/);
-    await userEvent.type(textarea(), 'ilk soru');
-    await userEvent.click(screen.getByRole('button', { name: 'Konseye Sor' }));
-    await screen.findByText('Konsey Başkanı: model-x');
+    await userEvent.click(screen.getByRole('button', { name: '+ New conversation' }));
 
-    await userEvent.type(textarea(), 'takip sorusu');
-    await userEvent.click(screen.getByRole('button', { name: 'Konseye Sor' }));
+    expect(screen.queryByText('Council President: model-x')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '+ New conversation' })).not.toBeInTheDocument();
+  });
 
-    expect(api.askCouncil).toHaveBeenLastCalledWith('takip sorusu', 5, false);
+  it('a second submission passes the threadId returned from the previous turn to askCouncil (thread continuity)', async () => {
+    vi.mocked(api.getSettings).mockResolvedValue(settingsResponse());
+    vi.mocked(api.askCouncil).mockResolvedValue(buildCouncilResult({ presidentProvider: 'model-x', threadId: 5 }));
+
+    render(<App />);
+    await screen.findByText(/Ask one question to multiple AI models/);
+
+    const textarea = () => screen.getByPlaceholderText(/ask the council|Write a follow-up question/);
+    await userEvent.type(textarea(), 'first question');
+    await userEvent.click(screen.getByRole('button', { name: 'Ask Council' }));
+    await screen.findByText('Council President: model-x');
+
+    await userEvent.type(textarea(), 'follow-up question');
+    await userEvent.click(screen.getByRole('button', { name: 'Ask Council' }));
+
+    expect(api.askCouncil).toHaveBeenLastCalledWith('follow-up question', 5, false);
   });
 });

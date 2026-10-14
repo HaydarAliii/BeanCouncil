@@ -13,9 +13,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Tavily arama API'si üzerinden konseye güncel/gerçek web sonuçları sağlar. Tamamen opsiyonel —
- * key yoksa veya çağrı başarısız olursa boş liste döner, konsey akışını ASLA bozmaz (arama,
- * cevap kalitesini artıran bir ek; olmazsa olmaz değil).
+ * Supplies current, real web results to the council via the Tavily search API. Entirely
+ * optional — if there's no key or the call fails, it returns an empty list and NEVER breaks
+ * the council flow (search is a quality-of-answer bonus, not a hard requirement).
  */
 @Service
 public class WebSearchService {
@@ -54,7 +54,7 @@ public class WebSearchService {
                     .map(r -> new WebSearchResult((String) r.get("title"), (String) r.get("url"), (String) r.get("content")))
                     .toList();
         } catch (Exception ex) {
-            log.warn("Tavily web araması başarısız oldu, aramasız devam ediliyor: {}", ex.getMessage());
+            log.warn("Tavily web search failed, continuing without search results: {}", ex.getMessage());
             return List.of();
         }
     }

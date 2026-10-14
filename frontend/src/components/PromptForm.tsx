@@ -27,13 +27,13 @@ export function PromptForm({ loading, onSubmit, placeholder, webSearchAvailable 
       <textarea
         value={prompt}
         onChange={(event) => setPrompt(event.target.value)}
-        placeholder={placeholder ?? 'Konseye sormak istediğin soruyu yaz...'}
+        placeholder={placeholder ?? 'Write the question you want to ask the council...'}
         rows={4}
         disabled={loading}
       />
       <div className="prompt-form-actions">
         <button type="submit" disabled={loading || !prompt.trim()}>
-          {loading ? 'Konsey görüşüyor…' : 'Konseye Sor'}
+          {loading ? 'Council is deliberating…' : 'Ask Council'}
         </button>
         {webSearchAvailable && (
           <label className="web-search-toggle">
@@ -43,7 +43,7 @@ export function PromptForm({ loading, onSubmit, placeholder, webSearchAvailable 
               onChange={(e) => setWebSearch(e.target.checked)}
               disabled={loading}
             />
-            🔍 Web'de ara
+            🔍 Search the web
           </label>
         )}
       </div>

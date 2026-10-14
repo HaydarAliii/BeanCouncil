@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** OpenRouter model kataloğunu ve kayıtlı key'in kredi/limit durumunu frontend'e sunar. */
+/** Exposes the OpenRouter model catalog and the configured key's credit/limit status to the frontend. */
 @RestController
 @RequestMapping("/api/models")
 public class ModelsController {

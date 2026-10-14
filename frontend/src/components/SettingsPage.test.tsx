@@ -31,40 +31,40 @@ const twoModels: api.ModelInfo[] = [
 const freeKeyStatus: api.KeyStatus = { label: null, limit: null, usage: null, isFreeTier: true, limitRemaining: null };
 
 describe('SettingsPage', () => {
-  it('yüklenirken "Ayarlar yükleniyor..." gösterir', async () => {
+  it('shows "Loading settings..." while loading', async () => {
     let resolveSettings!: (value: api.SettingsResponse) => void;
     vi.mocked(api.getSettings).mockReturnValue(new Promise((resolve) => (resolveSettings = resolve)));
     vi.mocked(api.getModels).mockResolvedValue([]);
 
     render(<SettingsPage onSaved={vi.fn()} />);
 
-    expect(screen.getByText('Ayarlar yükleniyor...')).toBeInTheDocument();
+    expect(screen.getByText('Loading settings...')).toBeInTheDocument();
     resolveSettings(settingsResponse({ hasKey: false, keyPreview: null }));
     await screen.findByText('OpenRouter API Key');
   });
 
-  it('yükleme hatasında error-text gösterir', async () => {
-    vi.mocked(api.getSettings).mockRejectedValue(new Error('Ayarlar alınamadı (HTTP 500)'));
+  it('shows error-text on load failure', async () => {
+    vi.mocked(api.getSettings).mockRejectedValue(new Error('Could not load settings (HTTP 500)'));
     vi.mocked(api.getModels).mockResolvedValue([]);
 
     render(<SettingsPage onSaved={vi.fn()} />);
 
-    expect(await screen.findByText('Ayarlar alınamadı (HTTP 500)')).toBeInTheDocument();
+    expect(await screen.findByText('Could not load settings (HTTP 500)')).toBeInTheDocument();
   });
 
-  it("2'den az model seçiliyken Kaydet disabled olur ve model/başkan hint'i gösterilir", async () => {
+  it('disables Save and shows the model/president hint when fewer than 2 models are selected', async () => {
     vi.mocked(api.getSettings).mockResolvedValue(settingsResponse({ selectedModelIds: ['a'], presidentModelId: 'a' }));
     vi.mocked(api.getModels).mockResolvedValue([twoModels[0]]);
     vi.mocked(api.getKeyStatus).mockResolvedValue(freeKeyStatus);
 
     render(<SettingsPage onSaved={vi.fn()} />);
 
-    const saveButton = await screen.findByRole('button', { name: 'Kaydet' });
+    const saveButton = await screen.findByRole('button', { name: 'Save' });
     expect(saveButton).toBeDisabled();
-    expect(screen.getByText('En az 2 model seç ve aralarından bir başkan belirle.')).toBeInTheDocument();
+    expect(screen.getByText('Select at least 2 models and choose a president among them.')).toBeInTheDocument();
   });
 
-  it('key kayıtlı değilken ve input boşken "OpenRouter key gir" hint\'i gösterilir, getKeyStatus hiç çağrılmaz', async () => {
+  it('shows the "enter an OpenRouter key" hint when no key is saved and the input is empty, getKeyStatus is never called', async () => {
     vi.mocked(api.getSettings).mockResolvedValue(
       settingsResponse({ hasKey: false, keyPreview: null, selectedModelIds: ['a', 'b'], presidentModelId: 'a' }),
     );
@@ -72,13 +72,13 @@ describe('SettingsPage', () => {
 
     render(<SettingsPage onSaved={vi.fn()} />);
 
-    const saveButton = await screen.findByRole('button', { name: 'Kaydet' });
+    const saveButton = await screen.findByRole('button', { name: 'Save' });
     expect(saveButton).toBeDisabled();
-    expect(screen.getByText('Devam etmek için OpenRouter key gir.')).toBeInTheDocument();
+    expect(screen.getByText('Enter an OpenRouter key to continue.')).toBeInTheDocument();
     expect(api.getKeyStatus).not.toHaveBeenCalled();
   });
 
-  it('başarılı kayıt sonrası key input\'ları temizlenir (write-only), başarı mesajı gösterilir, onSaved çağrılır', async () => {
+  it('clears the key inputs after a successful save (write-only), shows a success message, calls onSaved', async () => {
     vi.mocked(api.getSettings).mockResolvedValue(settingsResponse());
     vi.mocked(api.getModels).mockResolvedValue(twoModels);
     vi.mocked(api.getKeyStatus).mockResolvedValue(freeKeyStatus);
@@ -87,40 +87,40 @@ describe('SettingsPage', () => {
     const onSaved = vi.fn();
 
     render(<SettingsPage onSaved={onSaved} />);
-    const saveButton = await screen.findByRole('button', { name: 'Kaydet' });
+    const saveButton = await screen.findByRole('button', { name: 'Save' });
     expect(saveButton).toBeEnabled();
 
-    const openRouterInput = screen.getByPlaceholderText('Değiştirmek için yeni key gir (opsiyonel)');
-    await userEvent.type(openRouterInput, 'yeni-key');
+    const openRouterInput = screen.getByPlaceholderText('Enter a new key to change it (optional)');
+    await userEvent.type(openRouterInput, 'new-key');
     await userEvent.click(saveButton);
 
-    expect(await screen.findByText('Ayarlar kaydedildi.')).toBeInTheDocument();
+    expect(await screen.findByText('Settings saved.')).toBeInTheDocument();
     expect(openRouterInput).toHaveValue('');
     expect(onSaved).toHaveBeenCalledWith(savedResponse);
   });
 
-  it('kayıt hatasında error-text gösterir, onSaved çağrılmaz', async () => {
+  it('shows error-text on save failure, onSaved is not called', async () => {
     vi.mocked(api.getSettings).mockResolvedValue(settingsResponse());
     vi.mocked(api.getModels).mockResolvedValue(twoModels);
     vi.mocked(api.getKeyStatus).mockResolvedValue(freeKeyStatus);
-    vi.mocked(api.saveSettings).mockRejectedValue(new Error('Ayarlar kaydedilemedi (HTTP 500)'));
+    vi.mocked(api.saveSettings).mockRejectedValue(new Error('Could not save settings (HTTP 500)'));
     const onSaved = vi.fn();
 
     render(<SettingsPage onSaved={onSaved} />);
-    await userEvent.click(await screen.findByRole('button', { name: 'Kaydet' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Save' }));
 
-    expect(await screen.findByText('Ayarlar kaydedilemedi (HTTP 500)')).toBeInTheDocument();
+    expect(await screen.findByText('Could not save settings (HTTP 500)')).toBeInTheDocument();
     expect(onSaved).not.toHaveBeenCalled();
   });
 
-  it('getKeyStatus yüklemede başarısız olursa sessizce yutulur, sayfa yine render olur', async () => {
+  it('silently swallows a getKeyStatus failure during load, the page still renders', async () => {
     vi.mocked(api.getSettings).mockResolvedValue(settingsResponse());
     vi.mocked(api.getModels).mockResolvedValue(twoModels);
-    vi.mocked(api.getKeyStatus).mockRejectedValue(new Error("OpenRouter'a ulaşılamadı"));
+    vi.mocked(api.getKeyStatus).mockRejectedValue(new Error('Could not reach OpenRouter'));
 
     render(<SettingsPage onSaved={vi.fn()} />);
 
     expect(await screen.findByText('OpenRouter API Key')).toBeInTheDocument();
-    expect(screen.queryByText(/ulaşılamadı/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Could not reach/)).not.toBeInTheDocument();
   });
 });

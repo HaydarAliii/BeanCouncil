@@ -62,7 +62,7 @@ export type ConversationSummary = {
   turnCount: number;
 };
 
-/** Backend hata gövdesi `{ error: "..." }` ise onu, yoksa HTTP durumunu mesaj olarak kullanır. */
+/** Uses the backend's `{ error: "..." }` body as the message if present, otherwise falls back to the HTTP status. */
 async function handle<T>(response: Response, fallbackMessage: string): Promise<T> {
   if (!response.ok) {
     let message = `${fallbackMessage} (HTTP ${response.status})`;
@@ -72,7 +72,7 @@ async function handle<T>(response: Response, fallbackMessage: string): Promise<T
         message = body.error;
       }
     } catch {
-      // gövde JSON değilse HTTP durumunu kullanmaya devam et
+      // body isn't JSON — stick with the HTTP status message
     }
     throw new Error(message);
   }
@@ -89,12 +89,12 @@ export async function askCouncil(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt, threadId, webSearch }),
   });
-  return handle(response, 'Konsey isteği başarısız oldu');
+  return handle(response, 'Council request failed');
 }
 
 export async function getSettings(): Promise<SettingsResponse> {
   const response = await fetch('/api/settings');
-  return handle(response, 'Ayarlar alınamadı');
+  return handle(response, 'Could not load settings');
 }
 
 export async function saveSettings(request: SettingsRequest): Promise<SettingsResponse> {
@@ -103,26 +103,26 @@ export async function saveSettings(request: SettingsRequest): Promise<SettingsRe
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
   });
-  return handle(response, 'Ayarlar kaydedilemedi');
+  return handle(response, 'Could not save settings');
 }
 
 export async function getModels(): Promise<ModelInfo[]> {
   const response = await fetch('/api/models');
-  const data = await handle<{ models: ModelInfo[] }>(response, 'Model listesi alınamadı');
+  const data = await handle<{ models: ModelInfo[] }>(response, 'Could not load model list');
   return data.models;
 }
 
 export async function getKeyStatus(): Promise<KeyStatus> {
   const response = await fetch('/api/models/key');
-  return handle(response, 'Key durumu alınamadı');
+  return handle(response, 'Could not load key status');
 }
 
 export async function getConversations(): Promise<ConversationSummary[]> {
   const response = await fetch('/api/conversations');
-  return handle(response, 'Geçmiş alınamadı');
+  return handle(response, 'Could not load history');
 }
 
 export async function getConversationDetail(threadId: number): Promise<CouncilResult[]> {
   const response = await fetch(`/api/conversations/${threadId}`);
-  return handle(response, 'Konuşma alınamadı');
+  return handle(response, 'Could not load conversation');
 }
