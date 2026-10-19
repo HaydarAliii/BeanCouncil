@@ -21,7 +21,8 @@ jobs:
           java-version: "21"
           cache: maven
 
-      # No Docker/Postgres needed — every test uses pure Mockito or MockWebServer (Round 1).
+      # Most tests use pure Mockito/MockWebServer, but the JPA integration tests spin up a real
+      # Postgres via Testcontainers — ubuntu-latest ships Docker preinstalled, so this just works.
       - run: mvn -B test
 
   frontend-checks:

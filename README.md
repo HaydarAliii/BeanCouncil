@@ -54,7 +54,7 @@ llmKonsey/
 │       │                LegacyConversationMigration (one-time startup migration that moves legacy
 │       │                records into threads)
 │       └── util/        SecretCipher (AES-256-GCM key encryption)
-│   └── src/test/java/com/llmcouncil/   51 tests — mirrors the src/main package structure (see "Tests")
+│   └── src/test/java/com/llmcouncil/   69 tests — mirrors the src/main package structure (see "Tests")
 └── frontend/             React + Vite + TypeScript UI
     ├── Dockerfile           (build + static serving/proxy via nginx)
     ├── nginx.conf           (Basic Auth + /api proxy)
@@ -122,7 +122,7 @@ cd backend
 mvn test
 ```
 
-51 tests, all finishing in ~1 second, pass **without Docker/Postgres/`.env`** — none of them start a Spring context. The most critical logic (`CouncilService`: president neutrality, follow-up context, web search integration, graceful degradation on failures) is tested with pure Mockito; the 3 classes that make outbound HTTP calls (`OpenAiCompatibleAdapter`, `OpenRouterCatalogService`, `WebSearchService`) are tested against MockWebServer without touching the real network. JPA/repository integration tests (Testcontainers) are not yet in scope.
+69 tests. 51 of them are pure unit tests (no Spring context, no `.env`, finishing in ~1 second): the most critical logic (`CouncilService`: president neutrality, follow-up context, web search integration, graceful degradation on failures) is tested with pure Mockito; the 3 classes that make outbound HTTP calls (`OpenAiCompatibleAdapter`, `OpenRouterCatalogService`, `WebSearchService`) are tested against MockWebServer without touching the real network. The other 18 are `@DataJpaTest` integration tests against a real Postgres via **Testcontainers** — repository query methods, `IDENTITY` id generation, `TEXT` column round-trips, the single-row `app_settings` upsert, and the startup `LegacyConversationMigration` backfill, all verified against `postgres:16-alpine` instead of mocks. Running `mvn test` now requires a working **Docker daemon** (a single container is started once and shared across every integration test class).
 
 ```bash
 cd frontend
@@ -131,7 +131,7 @@ npm test
 
 53 tests (vitest + React Testing Library, on jsdom, passing in ~2 seconds with no browser/network needed): the error-parsing contract in `api.ts`, the `SettingsPage`/`App` state machines (view routing, clearing key inputs after save, thread continuity), and a regression guard for a bug that actually happened in this project — the "web search" section under "Show process" must not render at all when `webSearchResults` is empty. Component tests mock the `../api` module as a boundary; only `api.test.ts` stubs the real `fetch` call.
 
-`.github/workflows/ci.yml` runs two jobs on every push/PR to `main`: backend (`mvn test`) and frontend (`npm run lint` + `npm test` + `npm run build`, including type checking) — neither needs extra services.
+`.github/workflows/ci.yml` runs two jobs on every push/PR to `main`: backend (`mvn test`) and frontend (`npm run lint` + `npm test` + `npm run build`, including type checking). `ubuntu-latest` ships Docker preinstalled, so the backend job's Testcontainers tests run with no extra setup.
 
 ## Deploy (Docker Compose on your own server/VPS)
 
@@ -162,7 +162,7 @@ Fully verified locally: `docker compose ... build` produces both images successf
 - ✅ Working: multi-turn (follow-up) conversations — asking a new question in the same thread lets council members see the previous turn(s) as context; a past conversation can also be "continued" from History right where it left off
 - ✅ Working: optional web search (Tavily) — checking "Search the web" lets members see fresh search results as context; if there's no key or the search fails, the council silently continues without it and never crashes
 - ✅ Working: production deploy — `docker-compose.prod.yml` brings up Postgres+backend+frontend with one command; backend/Postgres are closed off externally, frontend sits behind Basic Auth, no CORS needed (same-origin proxy)
-- ✅ Working: backend test suite — 51 tests (`CouncilService`, `SettingsService`, `SecretCipher`, `LegacyConversationMigration`, `ConversationHistoryService` via pure Mockito; `OpenAiCompatibleAdapter`/`OpenRouterCatalogService`/`WebSearchService` via MockWebServer HTTP contract tests), passing in ~1s via `mvn test` with no Docker
+- ✅ Working: backend test suite — 69 tests: 51 pure-Mockito/MockWebServer unit tests (`CouncilService`, `SettingsService`, `SecretCipher`, `LegacyConversationMigration`, `ConversationHistoryService`, `OpenAiCompatibleAdapter`, `OpenRouterCatalogService`, `WebSearchService`) plus 18 `@DataJpaTest` integration tests against a real Postgres via Testcontainers (repositories, id generation, the settings upsert, the legacy migration backfill)
 - ✅ Working: frontend test suite — 53 tests (vitest/testing-library), component/state tests mocked at the `../api` boundary, passing in ~2s via `npm test` with no Docker
 - ✅ Working: CI (GitHub Actions) — backend tests + frontend lint/test/build run automatically on every push/PR
-- ❌ Not yet: JPA/integration tests via Testcontainers, Ollama support, automatic HTTPS (TLS is intentionally out of scope — bring your own reverse proxy)
+- ❌ Not yet: Ollama support, automatic HTTPS (TLS is intentionally out of scope — bring your own reverse proxy)

@@ -82,12 +82,29 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Spring Boot 4.x moved @DataJpaTest/@AutoConfigureTestDatabase/TestEntityManager out of
+             spring-boot-test-autoconfigure into their own modules; this starter pulls all of them in. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- An in-process HTTP server for testing WebClient calls to OpenRouter/Tavily
              (OpenAiCompatibleAdapter, OpenRouterCatalogService, WebSearchService) without hitting the real network. -->
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>mockwebserver</artifactId>
             <version>${mockwebserver.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Real Postgres in a container for JPA/repository integration tests. Version is managed
+             by the Spring Boot parent (which imports the Testcontainers BOM) — Testcontainers 2.x
+             renamed this module from "postgresql" to "testcontainers-postgresql". -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-postgresql</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
