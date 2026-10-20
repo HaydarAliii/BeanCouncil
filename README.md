@@ -1,6 +1,7 @@
 # BeanCouncil
 
 [![CI](https://github.com/HaydarAliii/BeanCouncil/actions/workflows/ci.yml/badge.svg)](https://github.com/HaydarAliii/BeanCouncil/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 `spring-boot` · `java` · `react` · `typescript` · `openrouter` · `llm` · `multi-agent` · `postgresql` · `vite` · `docker`
 
@@ -183,3 +184,7 @@ Fully verified locally: `docker compose ... build` produces both images successf
 - ✅ Working: frontend test suite — 55 tests (vitest/testing-library), component/state tests mocked at the `../api` boundary, passing in ~2s via `npm test` with no Docker
 - ✅ Working: CI (GitHub Actions) — backend tests + frontend lint/test/build run automatically on every push/PR
 - ❌ Not yet: running Ollama itself as a Docker Compose sidecar (assumes a host-run Ollama for now), automatic HTTPS (TLS is intentionally out of scope — bring your own reverse proxy)
+
+## License
+
+[MIT](LICENSE)
