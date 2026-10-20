@@ -3,7 +3,7 @@
 [![CI](https://github.com/HaydarAliii/BeanCouncil/actions/workflows/ci.yml/badge.svg)](https://github.com/HaydarAliii/BeanCouncil/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-`spring-boot` · `java` · `react` · `typescript` · `openrouter` · `llm` · `multi-agent` · `postgresql` · `vite` · `docker`
+`spring-boot` · `java` · `react` · `typescript` · `openrouter` · `ollama` · `llm` · `multi-agent` · `postgresql` · `vite` · `docker`
 
 A multi-agent AI council app built on Java/Spring Boot + React, inspired by Andrej Karpathy's [llm-council](https://github.com/karpathy/llm-council) and jacob-bd's [the-ai-counsel](https://github.com/jacob-bd/the-ai-counsel). Spring Boot replaces the original Python/FastAPI architecture. Like the-ai-counsel, it talks to **only official APIs** — no reverse-engineered or keyless "free" services. The main key source is [OpenRouter](https://openrouter.ai): one OpenRouter API key gives official access to 400+ models (OpenAI, Anthropic, Google, xAI, and more). A council can also run on local models through [Ollama](https://ollama.com) instead — fully offline, no key required, including councils made up entirely of local models.
 
