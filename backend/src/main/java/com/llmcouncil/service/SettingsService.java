@@ -41,16 +41,17 @@ public class SettingsService {
         return toResponse(repository.findSingleton().orElse(null));
     }
 
-    /** Read used by council/model proxy flows, where a key and model selection are required. */
+    /**
+     * Read used by council/model proxy flows, where a model selection is always required but an
+     * OpenRouter key is only required if at least one selected model actually routes through
+     * OpenRouter (an all-{@code ollama/}-prefixed selection can run fully local, key-free).
+     */
     public AppSettings getDecryptedSettingsOrThrow() {
         AppSettingsEntity entity = repository.findSingleton()
                 .orElseThrow(() -> new SettingsNotConfiguredException(
-                        "Settings haven't been configured yet. Enter your OpenRouter key and select council members first."));
+                        "Settings haven't been configured yet. Select council members first."));
 
         String key = cipher.decrypt(entity.getOpenRouterKeyEncrypted());
-        if (key == null || key.isBlank()) {
-            throw new SettingsNotConfiguredException("OpenRouter key is not set. Please add it in Settings.");
-        }
 
         List<String> modelIds = parseModelIds(entity.getSelectedModelIdsJson());
         if (modelIds.size() < 2) {
@@ -59,6 +60,11 @@ public class SettingsService {
         String presidentId = entity.getPresidentModelId();
         if (presidentId == null || presidentId.isBlank() || !modelIds.contains(presidentId)) {
             throw new SettingsNotConfiguredException("The council president must be chosen from among the selected models.");
+        }
+
+        boolean needsOpenRouterKey = modelIds.stream().anyMatch(id -> !id.startsWith("ollama/"));
+        if (needsOpenRouterKey && (key == null || key.isBlank())) {
+            throw new SettingsNotConfiguredException("OpenRouter key is not set. Please add it in Settings.");
         }
 
         String tavilyKey = cipher.decrypt(entity.getTavilyKeyEncrypted());

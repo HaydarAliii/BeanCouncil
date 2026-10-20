@@ -107,6 +107,29 @@ class SettingsServiceTest {
     }
 
     @Test
+    void getDecryptedSettingsOrThrow_allOllamaModelsBlankKey_returnsSettingsWithNullKey() {
+        AppSettingsEntity entity = entityWith(null, List.of("ollama/llama3.1", "ollama/qwen2.5"), "ollama/llama3.1");
+        when(repository.findSingleton()).thenReturn(Optional.of(entity));
+        when(cipher.decrypt(null)).thenReturn(null);
+
+        AppSettings settings = service.getDecryptedSettingsOrThrow();
+
+        assertThat(settings.hasKey()).isFalse();
+        assertThat(settings.selectedModelIds()).containsExactly("ollama/llama3.1", "ollama/qwen2.5");
+        assertThat(settings.presidentModelId()).isEqualTo("ollama/llama3.1");
+    }
+
+    @Test
+    void getDecryptedSettingsOrThrow_mixedModelsBlankKey_throwsSettingsNotConfigured() {
+        AppSettingsEntity entity = entityWith("enc-key", List.of("ollama/llama3.1", "openai/gpt-5"), "ollama/llama3.1");
+        when(repository.findSingleton()).thenReturn(Optional.of(entity));
+        when(cipher.decrypt("enc-key")).thenReturn("");
+
+        assertThatThrownBy(() -> service.getDecryptedSettingsOrThrow())
+                .isInstanceOf(SettingsNotConfiguredException.class);
+    }
+
+    @Test
     void save_blankOpenRouterKey_keepsExistingEncryptedKey() {
         AppSettingsEntity existing = entityWith("existing-enc", List.of("a", "b"), "a");
         when(repository.findSingleton()).thenReturn(Optional.of(existing));

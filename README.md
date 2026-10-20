@@ -4,7 +4,7 @@
 
 `spring-boot` · `java` · `react` · `typescript` · `openrouter` · `llm` · `multi-agent` · `postgresql` · `vite` · `docker`
 
-A multi-agent AI council app built on Java/Spring Boot + React, inspired by Andrej Karpathy's [llm-council](https://github.com/karpathy/llm-council) and jacob-bd's [the-ai-counsel](https://github.com/jacob-bd/the-ai-counsel). Spring Boot replaces the original Python/FastAPI architecture. Like the-ai-counsel, it talks to **only official APIs** — no reverse-engineered or keyless "free" services. The single key source is [OpenRouter](https://openrouter.ai): one OpenRouter API key gives official access to 400+ models (OpenAI, Anthropic, Google, xAI, and more).
+A multi-agent AI council app built on Java/Spring Boot + React, inspired by Andrej Karpathy's [llm-council](https://github.com/karpathy/llm-council) and jacob-bd's [the-ai-counsel](https://github.com/jacob-bd/the-ai-counsel). Spring Boot replaces the original Python/FastAPI architecture. Like the-ai-counsel, it talks to **only official APIs** — no reverse-engineered or keyless "free" services. The main key source is [OpenRouter](https://openrouter.ai): one OpenRouter API key gives official access to 400+ models (OpenAI, Anthropic, Google, xAI, and more). A council can also run on local models through [Ollama](https://ollama.com) instead — fully offline, no key required, including councils made up entirely of local models.
 
 Designed as a single-user tool — no multi-user/account system or per-user auth. Supports both local development and single-user (Basic Auth protected) deployment on your own server/VPS via Docker Compose.
 
@@ -21,9 +21,9 @@ The result (first opinions + reviews + final answer) is persisted to the DB as a
 Council members and the president are **chosen by the user at runtime** — there's no hardcoded identity baked into code/config:
 
 - The user enters their own OpenRouter API key from the app's **Settings** screen. The key is stored AES-256-GCM encrypted in a single-row `app_settings` table on the backend; the API never returns the full key, only a "present/absent" flag plus the last 4 characters.
-- The Settings screen shows OpenRouter's live model catalog (400+ models) in real time: a free/paid badge, pricing, and the stored key's credit/limit status for each model.
-- The user picks whichever models they want and makes one of them the president. A member's identity is simply its OpenRouter model id (e.g. `anthropic/claude-sonnet-5`).
-- The council won't run until both a key and a model selection are in place; the backend returns `428 Precondition Required` with a clear error message in that case (never a silent `500`).
+- The Settings screen shows OpenRouter's live model catalog (400+ models) in real time: a free/paid badge, pricing, and the stored key's credit/limit status for each model. If a local Ollama server is reachable, its installed models are auto-discovered (`GET /api/tags`) and listed alongside OpenRouter's, tagged with a "Local" badge — Ollama being unreachable just means those models don't show up, it never breaks the picker.
+- The user picks whichever models they want and makes one of them the president. A member's identity is its model id — the OpenRouter id as-is (e.g. `anthropic/claude-sonnet-5`), or `ollama/<model>` (e.g. `ollama/llama3.1`) for a local one.
+- The council won't run until a model selection (≥2 models + a president among them) is in place; an OpenRouter key is **only** required if the selection includes a non-local model — a council made up entirely of `ollama/...` models can run with no key at all. The backend returns `428 Precondition Required` with a clear error message when something's still missing (never a silent `500`).
 
 **Web search (optional)**: the user can also enter a free [Tavily](https://app.tavily.com/home) key from Settings (also AES-256-GCM encrypted, write-only). Once a key is stored, a "🔍 Search the web" option appears on the council screen — when checked, fresh search results from Tavily are added as context before the question is sent to the members. Fully optional: the option is hidden entirely if there's no key; if the search API errors out (invalid key, rate limit, network issue) it's silently skipped and the council still produces an answer as normal — search never breaks the flow.
 
@@ -41,7 +41,8 @@ llmKonsey/
 │   ├── docker-compose.yml   (Postgres only, for local development)
 │   ├── .env.example
 │   └── src/main/java/com/llmcouncil/
-│       ├── adapter/     LlmProviderAdapter, OpenAiCompatibleAdapter (a single, generic OpenRouter adapter)
+│       ├── adapter/     LlmProviderAdapter, OpenAiCompatibleAdapter (a single, generic adapter
+│       │                shared by OpenRouter and Ollama — both speak the OpenAI chat/completions format)
 │       ├── config/      WebClient (including timeout + large response buffer)
 │       ├── controller/  CouncilController, SettingsController, ModelsController, ConversationController
 │       ├── exception/   SettingsNotConfiguredException, OpenRouterUnauthorizedException,
@@ -49,12 +50,14 @@ llmKonsey/
 │       ├── model/       dto (records) and JPA entities (including AppSettingsEntity, ConversationThreadEntity)
 │       ├── repository/  Spring Data JPA repositories
 │       ├── service/     CouncilService (the 3-stage pipeline + thread/follow-up + web search context),
-│       │                CouncilMemberFactory (dynamic member construction), SettingsService,
-│       │                OpenRouterCatalogService, WebSearchService (Tavily), ConversationHistoryService,
-│       │                LegacyConversationMigration (one-time startup migration that moves legacy
-│       │                records into threads)
+│       │                CouncilMemberFactory (routes a model id to OpenRouter or, for an
+│       │                `ollama/`-prefixed id, to the local Ollama server), SettingsService,
+│       │                ModelCatalogService (merges the OpenRouter + Ollama catalogs),
+│       │                OpenRouterCatalogService, OllamaCatalogService, WebSearchService (Tavily),
+│       │                ConversationHistoryService, LegacyConversationMigration (one-time startup
+│       │                migration that moves legacy records into threads)
 │       └── util/        SecretCipher (AES-256-GCM key encryption)
-│   └── src/test/java/com/llmcouncil/   69 tests — mirrors the src/main package structure (see "Tests")
+│   └── src/test/java/com/llmcouncil/   79 tests — mirrors the src/main package structure (see "Tests")
 └── frontend/             React + Vite + TypeScript UI
     ├── Dockerfile           (build + static serving/proxy via nginx)
     ├── nginx.conf           (Basic Auth + /api proxy)
@@ -115,6 +118,17 @@ curl -X POST http://localhost:8080/api/council/ask \
 
 **Note**: OpenRouter's `:free`-tagged models (~20 out of 400+) are completely free, but their shared pools can occasionally hit rate limits. Big-name models (gpt, claude, gemini, grok families) are always paid on OpenRouter — using them requires loading credit onto your account.
 
+### Local models (Ollama)
+
+Install [Ollama](https://ollama.com), pull a model, and run it — nothing else to configure for local development:
+
+```bash
+ollama pull llama3.1
+ollama serve   # usually already running after install
+```
+
+The backend looks for Ollama at `http://localhost:11434` by default (override with the `OLLAMA_BASE_URL` env var). Once it's reachable, its models show up in Settings' model picker with a "Local" badge, right alongside OpenRouter's. Select 2+ local models and save with the OpenRouter key field left empty to run a fully offline, key-free council — or mix local and OpenRouter models in the same council. If Ollama isn't running, its models simply don't appear; nothing else is affected.
+
 ### Tests
 
 ```bash
@@ -122,14 +136,14 @@ cd backend
 mvn test
 ```
 
-69 tests. 51 of them are pure unit tests (no Spring context, no `.env`, finishing in ~1 second): the most critical logic (`CouncilService`: president neutrality, follow-up context, web search integration, graceful degradation on failures) is tested with pure Mockito; the 3 classes that make outbound HTTP calls (`OpenAiCompatibleAdapter`, `OpenRouterCatalogService`, `WebSearchService`) are tested against MockWebServer without touching the real network. The other 18 are `@DataJpaTest` integration tests against a real Postgres via **Testcontainers** — repository query methods, `IDENTITY` id generation, `TEXT` column round-trips, the single-row `app_settings` upsert, and the startup `LegacyConversationMigration` backfill, all verified against `postgres:16-alpine` instead of mocks. Running `mvn test` now requires a working **Docker daemon** (a single container is started once and shared across every integration test class).
+79 tests. 61 of them are pure unit tests (no Spring context, no `.env`, finishing in ~1 second): the most critical logic (`CouncilService`: president neutrality, follow-up context, web search integration, graceful degradation on failures; `CouncilMemberFactory`: routing a model id to OpenRouter vs. local Ollama) is tested with pure Mockito; the classes that make outbound HTTP calls (`OpenAiCompatibleAdapter`, `OpenRouterCatalogService`, `OllamaCatalogService`, `WebSearchService`) are tested against MockWebServer without touching the real network. The other 18 are `@DataJpaTest` integration tests against a real Postgres via **Testcontainers** — repository query methods, `IDENTITY` id generation, `TEXT` column round-trips, the single-row `app_settings` upsert, and the startup `LegacyConversationMigration` backfill, all verified against `postgres:16-alpine` instead of mocks. Running `mvn test` now requires a working **Docker daemon** (a single container is started once and shared across every integration test class).
 
 ```bash
 cd frontend
 npm test
 ```
 
-53 tests (vitest + React Testing Library, on jsdom, passing in ~2 seconds with no browser/network needed): the error-parsing contract in `api.ts`, the `SettingsPage`/`App` state machines (view routing, clearing key inputs after save, thread continuity), and a regression guard for a bug that actually happened in this project — the "web search" section under "Show process" must not render at all when `webSearchResults` is empty. Component tests mock the `../api` module as a boundary; only `api.test.ts` stubs the real `fetch` call.
+55 tests (vitest + React Testing Library, on jsdom, passing in ~2 seconds with no browser/network needed): the error-parsing contract in `api.ts`, the `SettingsPage`/`App` state machines (view routing, clearing key inputs after save, thread continuity, the OpenRouter key only being required when the selection includes a non-local model), the `ModelPicker`'s free/paid/local badges, and a regression guard for a bug that actually happened in this project — the "web search" section under "Show process" must not render at all when `webSearchResults` is empty. Component tests mock the `../api` module as a boundary; only `api.test.ts` stubs the real `fetch` call.
 
 `.github/workflows/ci.yml` runs two jobs on every push/PR to `main`: backend (`mvn test`) and frontend (`npm run lint` + `npm test` + `npm run build`, including type checking). `ubuntu-latest` ships Docker preinstalled, so the backend job's Testcontainers tests run with no extra setup.
 
@@ -149,6 +163,8 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
 
 Opening the server in a browser on the port you set via `APP_PORT` (default 80) brings up a Basic Auth prompt — after logging in with `APP_AUTH_USERNAME`/`APP_AUTH_PASSWORD`, the app itself appears. HTTPS is out of scope for this compose setup — if you have a domain, put a reverse proxy like Caddy/nginx/Cloudflare Tunnel in front and let it handle TLS (the `frontend` service only listens on HTTP).
 
+If you also want local models in production, install Ollama on the host server itself (not in a container) and pull models there. The `backend` service already resolves `host.docker.internal` to the host (via `extra_hosts: host-gateway`) and defaults `OLLAMA_BASE_URL` to `http://host.docker.internal:11434` — set `OLLAMA_BASE_URL` in `.env.prod` only if Ollama listens somewhere else.
+
 Fully verified locally: `docker compose ... build` produces both images successfully, the containers come up, the backend connects to Postgres via the `postgres` service name (over the container network), requests without Basic Auth get `401`, and with the correct credentials both the static page and the `/api/*` proxy return `200`.
 
 ## Current Status
@@ -162,7 +178,8 @@ Fully verified locally: `docker compose ... build` produces both images successf
 - ✅ Working: multi-turn (follow-up) conversations — asking a new question in the same thread lets council members see the previous turn(s) as context; a past conversation can also be "continued" from History right where it left off
 - ✅ Working: optional web search (Tavily) — checking "Search the web" lets members see fresh search results as context; if there's no key or the search fails, the council silently continues without it and never crashes
 - ✅ Working: production deploy — `docker-compose.prod.yml` brings up Postgres+backend+frontend with one command; backend/Postgres are closed off externally, frontend sits behind Basic Auth, no CORS needed (same-origin proxy)
-- ✅ Working: backend test suite — 69 tests: 51 pure-Mockito/MockWebServer unit tests (`CouncilService`, `SettingsService`, `SecretCipher`, `LegacyConversationMigration`, `ConversationHistoryService`, `OpenAiCompatibleAdapter`, `OpenRouterCatalogService`, `WebSearchService`) plus 18 `@DataJpaTest` integration tests against a real Postgres via Testcontainers (repositories, id generation, the settings upsert, the legacy migration backfill)
-- ✅ Working: frontend test suite — 53 tests (vitest/testing-library), component/state tests mocked at the `../api` boundary, passing in ~2s via `npm test` with no Docker
+- ✅ Working: local models via Ollama — installed models are auto-discovered and listed alongside OpenRouter's with a "Local" badge; a council can mix local and OpenRouter models, or run fully local with no OpenRouter key at all; prod Docker resolves a host-run Ollama via `host.docker.internal`
+- ✅ Working: backend test suite — 79 tests: 61 pure-Mockito/MockWebServer unit tests (`CouncilService`, `CouncilMemberFactory`, `SettingsService`, `SecretCipher`, `LegacyConversationMigration`, `ConversationHistoryService`, `OpenAiCompatibleAdapter`, `OpenRouterCatalogService`, `OllamaCatalogService`, `ModelCatalogService`, `WebSearchService`) plus 18 `@DataJpaTest` integration tests against a real Postgres via Testcontainers (repositories, id generation, the settings upsert, the legacy migration backfill)
+- ✅ Working: frontend test suite — 55 tests (vitest/testing-library), component/state tests mocked at the `../api` boundary, passing in ~2s via `npm test` with no Docker
 - ✅ Working: CI (GitHub Actions) — backend tests + frontend lint/test/build run automatically on every push/PR
-- ❌ Not yet: Ollama support, automatic HTTPS (TLS is intentionally out of scope — bring your own reverse proxy)
+- ❌ Not yet: running Ollama itself as a Docker Compose sidecar (assumes a host-run Ollama for now), automatic HTTPS (TLS is intentionally out of scope — bring your own reverse proxy)

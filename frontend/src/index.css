@@ -14,6 +14,8 @@
   --free-bg: rgba(21, 128, 61, 0.12);
   --paid: #b45309;
   --paid-bg: rgba(180, 83, 9, 0.12);
+  --local: #2563eb;
+  --local-bg: rgba(37, 99, 235, 0.1);
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
@@ -43,6 +45,8 @@
     --free-bg: rgba(74, 222, 128, 0.15);
     --paid: #fbbf24;
     --paid-bg: rgba(251, 191, 36, 0.15);
+    --local: #60a5fa;
+    --local-bg: rgba(96, 165, 250, 0.15);
   }
 }
 
@@ -381,6 +385,11 @@ h4 {
 .badge-paid {
   color: var(--paid);
   background: var(--paid-bg);
+}
+
+.badge-local {
+  color: var(--local);
+  background: var(--local-bg);
 }
 
 .save-settings-button {

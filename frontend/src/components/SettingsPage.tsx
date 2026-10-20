@@ -75,7 +75,11 @@ export function SettingsPage({ onSaved }: SettingsPageProps) {
     });
   }
 
-  const needsNewKey = !settings?.hasKey && keyInput.trim() === '';
+  // The OpenRouter key is only required when at least one selected model actually routes
+  // through OpenRouter — a selection made up entirely of local ("ollama/...") models can be
+  // saved and run without ever configuring a key.
+  const selectionNeedsOpenRouter = selectedModelIds.some((id) => !id.startsWith('ollama/'));
+  const needsNewKey = selectionNeedsOpenRouter && !settings?.hasKey && keyInput.trim() === '';
   const canSave = !needsNewKey && selectedModelIds.length >= 2 && presidentModelId !== null;
 
   async function handleSave() {
@@ -114,7 +118,7 @@ export function SettingsPage({ onSaved }: SettingsPageProps) {
     <div className="settings-page">
       <KeyInputPanel
         title="OpenRouter API Key"
-        description="Your key is stored encrypted on the backend and is never shown back in full."
+        description="Your key is stored encrypted on the backend and is never shown back in full. Optional if your council is made up entirely of local (Ollama) models."
         hasKey={settings?.hasKey ?? false}
         keyPreview={settings?.keyPreview ?? null}
         value={keyInput}

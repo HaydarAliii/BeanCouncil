@@ -27,6 +27,12 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-llmcouncil}
       APP_CRYPTO_SECRET: ${APP_CRYPTO_SECRET:?APP_CRYPTO_SECRET must be set in .env.prod}
       APP_CRYPTO_SALT: ${APP_CRYPTO_SALT:?APP_CRYPTO_SALT must be set in .env.prod}
+      # Points at Ollama running on the host server, not in a container (see .env.prod.example).
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+    extra_hosts:
+      # Resolves host.docker.internal from inside the container (built in on Docker Desktop;
+      # explicitly needed here for Docker Engine on Linux).
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy

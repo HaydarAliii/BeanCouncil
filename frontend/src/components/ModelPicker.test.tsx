@@ -112,4 +112,29 @@ describe('ModelPicker', () => {
     expect(screen.getByText('Paid')).toBeInTheDocument();
     expect(screen.getByText('Free')).toBeInTheDocument();
   });
+
+  it('shows a "Local" badge for ollama/-prefixed models instead of Free/Paid', () => {
+    const localModel: ModelInfo = {
+      id: 'ollama/llama3.1',
+      name: 'llama3.1',
+      contextLength: null,
+      promptPrice: '0',
+      completionPrice: '0',
+      isFree: true,
+    };
+    render(
+      <ModelPicker
+        models={[...models, localModel]}
+        keyStatus={null}
+        selected={[]}
+        president={null}
+        onToggle={vi.fn()}
+        onSelectPresident={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Local')).toBeInTheDocument();
+    // The free-badge count stays at just the Qwen model — the local model doesn't double up as "Free".
+    expect(screen.getAllByText('Free')).toHaveLength(1);
+  });
 });

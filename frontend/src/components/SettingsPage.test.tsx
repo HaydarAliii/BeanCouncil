@@ -78,6 +78,29 @@ describe('SettingsPage', () => {
     expect(api.getKeyStatus).not.toHaveBeenCalled();
   });
 
+  it('leaves Save enabled with no key when the selection is entirely local (ollama/) models', async () => {
+    const localModels: api.ModelInfo[] = [
+      { id: 'ollama/llama3.1', name: 'llama3.1', contextLength: null, promptPrice: '0', completionPrice: '0', isFree: true },
+      { id: 'ollama/qwen2.5', name: 'qwen2.5', contextLength: null, promptPrice: '0', completionPrice: '0', isFree: true },
+    ];
+    vi.mocked(api.getSettings).mockResolvedValue(
+      settingsResponse({
+        hasKey: false,
+        keyPreview: null,
+        selectedModelIds: ['ollama/llama3.1', 'ollama/qwen2.5'],
+        presidentModelId: 'ollama/llama3.1',
+      }),
+    );
+    vi.mocked(api.getModels).mockResolvedValue(localModels);
+
+    render(<SettingsPage onSaved={vi.fn()} />);
+
+    const saveButton = await screen.findByRole('button', { name: 'Save' });
+    expect(saveButton).toBeEnabled();
+    expect(screen.queryByText('Enter an OpenRouter key to continue.')).not.toBeInTheDocument();
+    expect(api.getKeyStatus).not.toHaveBeenCalled();
+  });
+
   it('clears the key inputs after a successful save (write-only), shows a success message, calls onSaved', async () => {
     vi.mocked(api.getSettings).mockResolvedValue(settingsResponse());
     vi.mocked(api.getModels).mockResolvedValue(twoModels);

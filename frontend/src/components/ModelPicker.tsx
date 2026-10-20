@@ -47,14 +47,19 @@ export function ModelPicker({ models, keyStatus, selected, president, onToggle, 
       <div className="model-list">
         {filtered.map((model) => {
           const isSelected = selected.includes(model.id);
+          const isLocal = model.id.startsWith('ollama/');
           return (
             <label key={model.id} className={`model-row${isSelected ? ' model-row-selected' : ''}`}>
               <input type="checkbox" checked={isSelected} onChange={() => onToggle(model.id)} />
               <span className="model-name">{model.name}</span>
               <span className="model-id">{model.id}</span>
-              <span className={`model-badge ${model.isFree ? 'badge-free' : 'badge-paid'}`}>
-                {model.isFree ? 'Free' : 'Paid'}
-              </span>
+              {isLocal ? (
+                <span className="model-badge badge-local">Local</span>
+              ) : (
+                <span className={`model-badge ${model.isFree ? 'badge-free' : 'badge-paid'}`}>
+                  {model.isFree ? 'Free' : 'Paid'}
+                </span>
+              )}
               <input
                 type="radio"
                 name="president"
