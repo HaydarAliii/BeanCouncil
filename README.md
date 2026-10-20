@@ -35,6 +35,7 @@ Like council members and the president, conversations are **multi-turn (threaded
 ```
 llmKonsey/
 ├── docker-compose.prod.yml   Full stack (Postgres+backend+frontend), for production deploy
+├── docker-compose.ollama.yml Optional override: runs Ollama itself as a GPU-backed sidecar
 ├── .env.prod.example
 ├── backend/             Spring Boot API
 │   ├── pom.xml
@@ -166,6 +167,18 @@ Opening the server in a browser on the port you set via `APP_PORT` (default 80) 
 
 If you also want local models in production, install Ollama on the host server itself (not in a container) and pull models there. The `backend` service already resolves `host.docker.internal` to the host (via `extra_hosts: host-gateway`) and defaults `OLLAMA_BASE_URL` to `http://host.docker.internal:11434` — set `OLLAMA_BASE_URL` in `.env.prod` only if Ollama listens somewhere else.
 
+### Local models as a container (Ollama sidecar)
+
+Instead of installing Ollama on the host, `docker-compose.ollama.yml` runs it as an extra container, layered on top of the base deploy with a second `-f`:
+
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.yml -f docker-compose.ollama.yml up -d --build
+```
+
+This adds an `ollama` service (models persisted in a named volume) and a one-shot `ollama-pull` service that auto-pulls whatever's in `OLLAMA_PULL_MODELS` (comma-separated, default `llama3.1`) the first time it comes up — pulls are idempotent, so re-running `up` later is harmless. The `backend` service is repointed at `http://ollama:11434` automatically; you don't set `OLLAMA_BASE_URL` yourself in this mode. The app itself doesn't wait on the pull to finish — it comes up immediately, and local models simply appear in Settings (with a "Local" badge) once the pull completes.
+
+The sidecar reserves the host's NVIDIA GPU and assumes `nvidia-container-toolkit` is installed. On a CPU-only host, drop the `deploy.resources` block from the `ollama` service in `docker-compose.ollama.yml` — inference and pulls just run on CPU instead.
+
 Fully verified locally: `docker compose ... build` produces both images successfully, the containers come up, the backend connects to Postgres via the `postgres` service name (over the container network), requests without Basic Auth get `401`, and with the correct credentials both the static page and the `/api/*` proxy return `200`.
 
 ## Current Status
@@ -183,7 +196,8 @@ Fully verified locally: `docker compose ... build` produces both images successf
 - ✅ Working: backend test suite — 79 tests: 61 pure-Mockito/MockWebServer unit tests (`CouncilService`, `CouncilMemberFactory`, `SettingsService`, `SecretCipher`, `LegacyConversationMigration`, `ConversationHistoryService`, `OpenAiCompatibleAdapter`, `OpenRouterCatalogService`, `OllamaCatalogService`, `ModelCatalogService`, `WebSearchService`) plus 18 `@DataJpaTest` integration tests against a real Postgres via Testcontainers (repositories, id generation, the settings upsert, the legacy migration backfill)
 - ✅ Working: frontend test suite — 55 tests (vitest/testing-library), component/state tests mocked at the `../api` boundary, passing in ~2s via `npm test` with no Docker
 - ✅ Working: CI (GitHub Actions) — backend tests + frontend lint/test/build run automatically on every push/PR
-- ❌ Not yet: running Ollama itself as a Docker Compose sidecar (assumes a host-run Ollama for now), automatic HTTPS (TLS is intentionally out of scope — bring your own reverse proxy)
+- ✅ Working: Ollama as an optional Docker Compose sidecar (`docker-compose.ollama.yml`) — GPU-backed container alongside Postgres/backend/frontend, auto-pulls a configured model list on first boot, as an alternative to a host-installed Ollama
+- ❌ Not yet: automatic HTTPS (TLS is intentionally out of scope — bring your own reverse proxy)
 
 ## License
 
